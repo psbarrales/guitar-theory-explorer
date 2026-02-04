@@ -85,7 +85,7 @@ const state = {
   midiOutputId: "internal",
   midiAccess: null,
   midiOutput: null,
-  chordMode: false,
+  chordMode: true,
   chordNotes: new Array(6).fill(null),
   showInversion: true
 };
@@ -405,7 +405,7 @@ const INTERVAL_LABELS = {
   3: "b3",
   4: "3",
   5: "4",
-  6: "b5",
+  6: "#4",
   7: "5",
   8: "#5",
   9: "6",
@@ -477,6 +477,9 @@ function getInversionLabel(chordData) {
 }
 
 function updateChordInfo() {
+  if (!chordName || !chordNotesEl || !chordSpanEl || !chordHint || !chordInversion) {
+    return;
+  }
   const selection = getChordSelection();
   if (!selection.length) {
     chordName.textContent = "-";
@@ -487,15 +490,24 @@ function updateChordInfo() {
     return;
   }
 
+  const chordData = detectChordData();
   const inversionLabel = getInversionLabel(chordData);
-  let displayName = chordData ? chordData.name : "Acorde sin nombre";
+  const lowest = [...selection].sort((a, b) => a.midi - b.midi)[0];
+  const fallbackRoot = lowest ? pitchClassName(lowest.pitchClass) : "-";
+  let displayName = chordData ? chordData.name : `${fallbackRoot} (personalizado)`;
   if (chordData && state.showInversion && chordData.bassPc !== chordData.rootPc) {
     displayName = `${chordData.name}/${pitchClassName(chordData.bassPc)}`;
   }
-  chordName.textContent = chordData ? displayName : "Acorde sin nombre";
+  chordName.textContent = displayName;
   chordInversion.textContent = chordData ? inversionLabel : "-";
   const ordered = [...selection].sort((a, b) => a.midi - b.midi);
-  chordNotesEl.textContent = ordered.map((note) => pitchClassName(note.pitchClass)).join(" ");
+  chordNotesEl.textContent = ordered
+    .map((note) => {
+      const interval = (note.pitchClass - state.rootIndex + 12) % 12;
+      const label = INTERVAL_LABELS[interval] || "";
+      return label ? `${pitchClassName(note.pitchClass)} ${label}` : pitchClassName(note.pitchClass);
+    })
+    .join(" ");
   const span = getChordSpan();
   chordSpanEl.textContent = span !== null ? `${span} trastes` : "-";
   chordHint.textContent = "Max 5 trastes de distancia.";
@@ -793,22 +805,22 @@ function buildFretboard() {
       const inRange = activeNoteSet
         ? activeNoteSet.has(`${stringIndex}-${fret}`)
         : inWindow;
+      const isChordNote =
+        state.chordNotes[stringIndex] &&
+        state.chordNotes[stringIndex].fret === fret;
 
       const cell = document.createElement("button");
       cell.type = "button";
       cell.className = "note";
-      const showScale = !activeNoteSet || inRange;
+      const showScale = !activeNoteSet || inRange || isChordNote;
       if (inScale && showScale) cell.classList.add("in-scale");
       if (isRoot && showScale) cell.classList.add("root");
       if (!inScale || !showScale) cell.classList.add("muted");
       if (inWindow) cell.classList.add("in-window");
       if (activeNoteSet && inRange) cell.classList.add("in-position");
-      if (activeNoteSet && inWindow && !inRange) cell.classList.add("suppressed");
-      if (active && !inWindow) cell.classList.add("out-range");
-      if (
-        state.chordNotes[stringIndex] &&
-        state.chordNotes[stringIndex].fret === fret
-      ) {
+      if (!isChordNote && activeNoteSet && inWindow && !inRange) cell.classList.add("suppressed");
+      if (!isChordNote && active && !inWindow) cell.classList.add("out-range");
+      if (isChordNote) {
         cell.classList.add("chord");
       }
 
@@ -819,10 +831,7 @@ function buildFretboard() {
 
       const text = document.createElement("span");
       text.textContent = noteName;
-      if (
-        state.chordNotes[stringIndex] &&
-        state.chordNotes[stringIndex].fret === fret
-      ) {
+      if (isChordNote) {
         const interval = (noteIndex - state.rootIndex + 12) % 12;
         text.dataset.interval = INTERVAL_LABELS[interval] || "";
       }
@@ -831,14 +840,16 @@ function buildFretboard() {
       cell.addEventListener("click", () => {
         playNote(midi, 0.6, 0.85);
         flashNote(cell);
-        if (state.chordMode) {
-          handleChordSelection({
-            stringIndex,
-            fret,
-            midi,
-            pitchClass: noteIndex
-          });
+        if (!state.chordMode) {
+          chordHint.textContent = "Activa Modo acorde para seleccionar.";
+          return;
         }
+        handleChordSelection({
+          stringIndex,
+          fret,
+          midi,
+          pitchClass: noteIndex
+        });
       });
 
       row.appendChild(cell);
@@ -893,7 +904,6 @@ function handleChordSelection(note) {
   }
 
   state.chordNotes = next;
-  updateChordInfo();
   updateFretboard();
 }
 

@@ -515,6 +515,10 @@ body {
   transform: scale(1.06);
 }
 
+.note.chord {
+  opacity: 1;
+}
+
 .note.chord span::after {
   content: attr(data-interval);
   display: block;
@@ -538,6 +542,11 @@ body {
 
 .note.out-range {
   opacity: 0.2;
+}
+
+.note.chord.out-range,
+.note.chord.suppressed {
+  opacity: 1;
 }
 
 .note.playing {
