@@ -125,6 +125,9 @@ const playChordBtn = document.getElementById("playChord");
 const diatonicFormula = document.getElementById("diatonicFormula");
 const diatonicChords = document.getElementById("diatonicChords");
 const clearDiatonicBtn = document.getElementById("clearDiatonic");
+const toggleSidebarBtn = document.getElementById("toggleSidebar");
+const sidebar = document.getElementById("sidebar");
+const layout = document.querySelector(".layout");
 
 class Synth {
   constructor() {
@@ -294,9 +297,19 @@ function buildDiatonicTriads() {
 function updateDiatonicChords() {
   if (!diatonicChords || !diatonicFormula) return;
   const triads = buildDiatonicTriads();
-  diatonicFormula.textContent = triads.length
-    ? triads.map((chord) => chord.numeral).join(" ")
-    : "-";
+  diatonicFormula.innerHTML = "";
+  if (triads.length) {
+    triads.forEach((chord, index) => {
+      const span = document.createElement("span");
+      span.textContent = chord.numeral;
+      if ([0, 3, 4].includes(index)) {
+        span.classList.add("accent");
+      }
+      diatonicFormula.appendChild(span);
+    });
+  } else {
+    diatonicFormula.textContent = "-";
+  }
 
   diatonicChords.innerHTML = "";
   triads.forEach((chord) => {
@@ -639,10 +652,6 @@ function buildDegreeToggles() {
     const card = document.createElement("div");
     card.className = "degree-card";
 
-    const label = document.createElement("span");
-    label.className = "degree-label";
-    label.textContent = `Grado ${i + 1}`;
-
     const button = document.createElement("button");
     button.type = "button";
     button.className = "degree-toggle";
@@ -665,7 +674,6 @@ function buildDegreeToggles() {
       select.appendChild(option);
     });
 
-    card.appendChild(label);
     card.appendChild(button);
     card.appendChild(select);
     degreeToggles.appendChild(card);
@@ -1205,6 +1213,11 @@ function bindEvents() {
   clearChordBtn.addEventListener("click", () => {
     clearChord();
     updateFretboard();
+  });
+
+  toggleSidebarBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
+    layout.classList.toggle("sidebar-collapsed");
   });
 
   midiOutputSelect.addEventListener("change", (event) => {

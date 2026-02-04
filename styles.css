@@ -25,9 +25,84 @@ body {
 }
 
 .page {
-  max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 24px 48px;
+  padding: 24px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+}
+
+.layout.sidebar-collapsed {
+  grid-template-columns: 90px 1fr;
+}
+
+.sidebar {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  border-radius: 20px;
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+  height: fit-content;
+}
+
+.sidebar.collapsed {
+  grid-template-columns: 1fr;
+  width: 80px;
+  padding: 16px 10px;
+}
+
+.sidebar.collapsed .sidebar-section,
+.sidebar.collapsed .subtitle,
+.sidebar.collapsed h1,
+.sidebar.collapsed h3,
+.sidebar.collapsed label,
+.sidebar.collapsed .control-group span,
+.sidebar.collapsed .midi-hint,
+.sidebar.collapsed .toggle span,
+.sidebar.collapsed .action,
+.sidebar.collapsed select,
+.sidebar.collapsed input[type="range"] {
+  display: none;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.icon-btn {
+  border: 1px solid rgba(30, 27, 24, 0.2);
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sidebar-section {
+  display: grid;
+  gap: 12px;
+}
+
+.sidebar-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.content {
+  min-width: 0;
 }
 
 .hero {
@@ -37,6 +112,10 @@ body {
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.hero.compact {
+  margin-bottom: 16px;
 }
 
 .hero h1 {
@@ -84,22 +163,13 @@ body {
   margin-bottom: 20px;
 }
 
-.controls,
-.midi {
+.scale-bar {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
-.control-top {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  align-items: end;
-}
-
-.control-editor {
-  display: grid;
-  gap: 12px;
+.scale-bar .control-group {
+  min-width: 0;
 }
 
 .control-header {
@@ -158,37 +228,33 @@ body {
 
 .degree-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 1fr);
   gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
 }
 
 .degree-card {
   display: grid;
-  grid-template-columns: 60px 1fr 70px;
+  grid-template-columns: 1fr 70px;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
   background: #fff;
   border: 1px solid rgba(30, 27, 24, 0.12);
 }
 
-.degree-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--ink-soft);
-}
-
 .degree-toggle {
   border-radius: 10px;
-  padding: 6px 6px;
+  padding: 6px 4px;
   text-align: center;
   border: 1px solid rgba(30, 27, 24, 0.2);
   background: #fff;
   cursor: pointer;
   transition: 0.2s ease;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -201,18 +267,18 @@ body {
   border-radius: 10px;
   border: 1px solid rgba(30, 27, 24, 0.2);
   background: #f4efe6;
-  padding: 4px 6px;
+  padding: 4px;
   font-size: 0.75rem;
   font-family: inherit;
 }
 
 @media (max-width: 900px) {
-  .controls {
+  .layout {
     grid-template-columns: 1fr;
   }
 
-  .degree-card {
-    grid-template-columns: 60px 1fr 70px;
+  .sidebar {
+    position: relative;
   }
 }
 .midi-hint {
@@ -352,19 +418,37 @@ body {
   background: rgba(31, 122, 111, 0.12);
   color: #13423b;
   border: 1px solid rgba(31, 122, 111, 0.25);
+  display: flex;
+  gap: 12px;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.diatonic-formula span {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.diatonic-formula span.accent {
+  color: #e53935;
+  font-weight: 700;
 }
 
 .diatonic-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(120px, 1fr);
   gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
 }
 
 .diatonic-btn {
   border: 1px solid rgba(30, 27, 24, 0.2);
   background: #fff;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: grid;
   gap: 4px;
   text-align: left;
@@ -373,11 +457,11 @@ body {
 }
 
 .diatonic-btn strong {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .diatonic-btn span {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--ink-soft);
 }
 
