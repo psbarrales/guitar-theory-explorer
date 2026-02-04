@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guitar Scale Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Guitar Theory Project</p>
+          <h1>Guitar Scale Lab</h1>
+          <p class="subtitle">
+            Ajusta grados, prueba presets y trabaja 5 posiciones. Haz click para escuchar notas o
+            dispara una escala completa por posicion.
+          </p>
+        </div>
+        <div class="status">
+          <div>
+            <span class="label">Escala actual</span>
+            <strong id="scaleName">Ionico</strong>
+          </div>
+          <div>
+            <span class="label">Formula</span>
+            <strong id="scaleFormula">1 2 3 4 5 6 7</strong>
+          </div>
+          <div>
+            <span class="label">Notas</span>
+            <strong id="scaleNotes">C D E F G A B</strong>
+          </div>
+        </div>
+      </header>
+
+      <section class="panel controls">
+        <div class="control-top">
+          <div class="control-group">
+            <label for="rootSelect">Tonica</label>
+            <select id="rootSelect"></select>
+          </div>
+          <div class="control-group">
+            <label for="presetSelect">Preset</label>
+            <select id="presetSelect"></select>
+            <div id="presetFormula" class="formula-preview">1 2 3 4 5 6 7</div>
+          </div>
+          <div class="control-group">
+            <label for="positionStart">Inicio posiciones</label>
+            <input id="positionStart" type="range" min="1" max="12" value="1" />
+            <span id="positionStartValue">1</span>
+          </div>
+          <div class="control-group">
+            <label for="positionWindow">Ancho posicion</label>
+            <select id="positionWindow">
+              <option value="4">4 trastes</option>
+              <option value="5" selected>5 trastes</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="fretCount">Frets visibles</label>
+            <input id="fretCount" type="range" min="12" max="20" value="17" />
+            <span id="fretCountValue">17</span>
+          </div>
+        </div>
+        <div class="control-editor">
+          <div class="control-header">
+            <div>
+              <h3>Editor de formula</h3>
+              <p>Activa grados y ajusta alteraciones.</p>
+            </div>
+          </div>
+          <div id="degreeToggles" class="degree-grid"></div>
+        </div>
+      </section>
+
+      <section class="panel midi">
+        <div class="control-group">
+          <label for="midiOutput">Salida MIDI</label>
+          <select id="midiOutput"></select>
+        </div>
+        <div class="control-group">
+          <label for="instrumentSelect">Selector de guitarra</label>
+          <select id="instrumentSelect"></select>
+        </div>
+        <div class="control-group">
+          <label for="volume">Volumen</label>
+          <input id="volume" type="range" min="0" max="1" step="0.01" value="0.7" />
+          <span id="volumeValue">70%</span>
+        </div>
+        <div class="control-group midi-hint" id="midiHint">
+          <p>
+            Si tienes un dispositivo MIDI conectado, selecciona la salida y se enviaran notas con
+            program change de guitarra. Si no, se usa el sintetizador interno.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel positions">
+        <div class="positions-header">
+          <h2>5 posiciones para trabajar</h2>
+          <p>Selecciona una posicion para resaltar el rango y reproducir la escala.</p>
+        </div>
+        <div id="positionButtons" class="position-grid"></div>
+      </section>
+
+      <section class="panel chord-builder">
+        <div class="chord-header">
+          <div>
+            <h2>Constructor de acordes</h2>
+            <p>Marca una nota por cuerda (max 5 trastes de span).</p>
+          </div>
+          <div class="chord-actions">
+            <label class="toggle">
+              <input id="chordMode" type="checkbox" />
+              <span>Modo acorde</span>
+            </label>
+            <label class="toggle">
+              <input id="showInversion" type="checkbox" checked />
+              <span>Mostrar inversion</span>
+            </label>
+            <button id="clearChord" class="action ghost">Limpiar</button>
+          </div>
+        </div>
+        <div class="chord-info">
+          <div>
+            <span class="label">Acorde</span>
+            <strong id="chordName">-</strong>
+          </div>
+          <div>
+            <span class="label">Inversion</span>
+            <strong id="chordInversion">-</strong>
+          </div>
+          <div>
+            <span class="label">Notas</span>
+            <strong id="chordNotes">-</strong>
+          </div>
+          <div>
+            <span class="label">Span</span>
+            <strong id="chordSpan">-</strong>
+          </div>
+          <p id="chordHint" class="chord-hint">Click en el mastil para armar el acorde.</p>
+        </div>
+      </section>
+
+      <section class="panel fretboard-wrap">
+        <div class="fretboard-header">
+          <div class="legend">
+            <span class="chip root">Tonica</span>
+            <span class="chip scale">Nota de escala</span>
+            <span class="chip muted">Fuera de escala</span>
+            <span class="chip chord">Acorde</span>
+          </div>
+          <button id="playAll" class="action">Reproducir escala completa</button>
+        </div>
+        <div id="fretNumbers" class="fret-numbers"></div>
+        <div id="fretMarkers" class="fret-markers"></div>
+        <div id="fretboard" class="fretboard"></div>
+      </section>
+
+      <footer class="footer">
+        <p>Haz click en cualquier nota del mastil para escucharla.</p>
+      </footer>
+    </div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
