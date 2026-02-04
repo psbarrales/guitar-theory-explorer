@@ -124,6 +124,7 @@
               <input id="showInversion" type="checkbox" checked />
               <span>Mostrar inversion</span>
             </label>
+            <button id="playChord" class="action">Reproducir acorde</button>
             <button id="clearChord" class="action ghost">Limpiar</button>
           </div>
         </div>
@@ -146,6 +147,18 @@
           </div>
           <p id="chordHint" class="chord-hint">Click en el mastil para armar el acorde.</p>
         </div>
+      </section>
+
+      <section class="panel diatonic-chords">
+        <div class="diatonic-header">
+          <div>
+            <h2>Acordes diatonicos</h2>
+            <p>Selecciona un grado para marcar las notas del acorde.</p>
+          </div>
+          <button id="clearDiatonic" class="action ghost">Limpiar seleccion</button>
+        </div>
+        <div class="diatonic-formula" id="diatonicFormula">I ii iii IV V vi vii°</div>
+        <div id="diatonicChords" class="diatonic-grid"></div>
       </section>
 
       <section class="panel fretboard-wrap">

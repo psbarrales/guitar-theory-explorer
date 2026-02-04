@@ -87,7 +87,9 @@ const state = {
   midiOutput: null,
   chordMode: true,
   chordNotes: new Array(6).fill(null),
-  showInversion: true
+  showInversion: true,
+  diatonicChordIndex: null,
+  diatonicChordTones: null
 };
 
 const rootSelect = document.getElementById("rootSelect");
@@ -119,6 +121,10 @@ const chordNotesEl = document.getElementById("chordNotes");
 const chordSpanEl = document.getElementById("chordSpan");
 const chordHint = document.getElementById("chordHint");
 const showInversionToggle = document.getElementById("showInversion");
+const playChordBtn = document.getElementById("playChord");
+const diatonicFormula = document.getElementById("diatonicFormula");
+const diatonicChords = document.getElementById("diatonicChords");
+const clearDiatonicBtn = document.getElementById("clearDiatonic");
 
 class Synth {
   constructor() {
@@ -229,6 +235,84 @@ function getActiveDegreeIndices() {
 function getPitchClassForDegree(degreeIndex) {
   const interval = (MAJOR_INTERVALS[degreeIndex] + state.degreeAdjustments[degreeIndex] + 120) % 12;
   return (state.rootIndex + interval) % 12;
+}
+
+function getScaleDegrees() {
+  const degrees = [];
+  for (let i = 0; i < 7; i += 1) {
+    if (!state.degreeMask[i]) continue;
+    const interval = (MAJOR_INTERVALS[i] + state.degreeAdjustments[i] + 120) % 12;
+    const pc = (state.rootIndex + interval) % 12;
+    degrees.push({ degree: i + 1, pc, interval });
+  }
+  return degrees;
+}
+
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
+
+function buildDiatonicTriads() {
+  const degrees = getScaleDegrees();
+  const count = degrees.length;
+  if (count < 3) return [];
+
+  return degrees.map((degree, idx) => {
+    const third = degrees[(idx + 2) % count];
+    const fifth = degrees[(idx + 4) % count];
+    const rootPc = degree.pc;
+    const thirdInt = (third.pc - rootPc + 12) % 12;
+    const fifthInt = (fifth.pc - rootPc + 12) % 12;
+
+    let quality = "";
+    let numeral = ROMAN[idx] || `${idx + 1}`;
+    if (thirdInt === 4 && fifthInt === 7) {
+      quality = "";
+      numeral = numeral.toUpperCase();
+    } else if (thirdInt === 3 && fifthInt === 7) {
+      quality = "m";
+      numeral = numeral.toLowerCase();
+    } else if (thirdInt === 3 && fifthInt === 6) {
+      quality = "dim";
+      numeral = `${numeral.toLowerCase()}°`;
+    } else if (thirdInt === 4 && fifthInt === 8) {
+      quality = "aug";
+      numeral = `${numeral.toUpperCase()}+`;
+    } else {
+      quality = "";
+    }
+
+    const name = `${pitchClassName(rootPc)}${quality}`;
+    return {
+      index: idx,
+      numeral,
+      name,
+      rootPc,
+      tones: new Set([rootPc, third.pc, fifth.pc])
+    };
+  });
+}
+
+function updateDiatonicChords() {
+  if (!diatonicChords || !diatonicFormula) return;
+  const triads = buildDiatonicTriads();
+  diatonicFormula.textContent = triads.length
+    ? triads.map((chord) => chord.numeral).join(" ")
+    : "-";
+
+  diatonicChords.innerHTML = "";
+  triads.forEach((chord) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "diatonic-btn";
+    if (state.diatonicChordIndex === chord.index) {
+      button.classList.add("active");
+    }
+    button.dataset.index = chord.index;
+    button.innerHTML = `
+      <strong>${chord.numeral}</strong>
+      <span>${chord.name}</span>
+    `;
+    diatonicChords.appendChild(button);
+  });
 }
 
 function getScaleCandidatesForString(stringMidi, start, end, scaleSet) {
@@ -784,6 +868,7 @@ function buildFretboard() {
   const windowStart = active ? active.start : null;
   const windowEnd = active ? active.end : null;
   const chordData = detectChordData();
+  const diatonicTones = state.diatonicChordTones;
 
   TUNING.forEach((string, stringIndex) => {
     const row = document.createElement("div");
@@ -808,6 +893,7 @@ function buildFretboard() {
       const isChordNote =
         state.chordNotes[stringIndex] &&
         state.chordNotes[stringIndex].fret === fret;
+      const isDiatonicChordTone = diatonicTones ? diatonicTones.has(noteIndex) : false;
 
       const cell = document.createElement("button");
       cell.type = "button";
@@ -820,6 +906,7 @@ function buildFretboard() {
       if (activeNoteSet && inRange) cell.classList.add("in-position");
       if (!isChordNote && activeNoteSet && inWindow && !inRange) cell.classList.add("suppressed");
       if (!isChordNote && active && !inWindow) cell.classList.add("out-range");
+      if (isDiatonicChordTone && !isChordNote) cell.classList.add("prog-chord");
       if (isChordNote) {
         cell.classList.add("chord");
       }
@@ -868,6 +955,7 @@ function updateFretboard() {
   buildFretNumbers();
   buildFretMarkers();
   buildPositionButtons();
+  updateDiatonicChords();
   buildFretboard();
   updateScaleSummary();
   updateChordInfo();
@@ -881,6 +969,24 @@ function playNote(midi, duration = 0.6, velocity = 0.8) {
   } else {
     synth.play(midi, duration, velocity);
   }
+}
+
+function playChord() {
+  const selection = getChordSelection();
+  if (!selection.length) {
+    chordHint.textContent = "Selecciona notas para reproducir el acorde.";
+    return;
+  }
+  const ordered = [...selection].sort((a, b) => a.midi - b.midi);
+  ordered.forEach((note, idx) => {
+    const delay = idx * 60;
+    setTimeout(() => {
+      playNote(note.midi, 1.0, 0.85);
+      const selector = `.note[data-string="${note.stringIndex}"][data-fret="${note.fret}"]`;
+      const cell = fretboard.querySelector(selector);
+      if (cell) flashNote(cell);
+    }, delay);
+  });
 }
 
 function handleChordSelection(note) {
@@ -1068,6 +1174,34 @@ function bindEvents() {
     updateChordInfo();
   });
 
+  playChordBtn.addEventListener("click", () => {
+    playChord();
+  });
+
+  diatonicChords.addEventListener("click", (event) => {
+    const button = event.target.closest(".diatonic-btn");
+    if (!button) return;
+    const index = Number(button.dataset.index);
+    if (state.diatonicChordIndex === index) {
+      state.diatonicChordIndex = null;
+      state.diatonicChordTones = null;
+    } else {
+      const triads = buildDiatonicTriads();
+      const chord = triads.find((item) => item.index === index);
+      if (chord) {
+        state.diatonicChordIndex = index;
+        state.diatonicChordTones = chord.tones;
+      }
+    }
+    updateFretboard();
+  });
+
+  clearDiatonicBtn.addEventListener("click", () => {
+    state.diatonicChordIndex = null;
+    state.diatonicChordTones = null;
+    updateFretboard();
+  });
+
   clearChordBtn.addEventListener("click", () => {
     clearChord();
     updateFretboard();
@@ -1103,6 +1237,7 @@ function init() {
   updatePositionControls();
   chordModeToggle.checked = state.chordMode;
   showInversionToggle.checked = state.showInversion;
+  updateDiatonicChords();
   updateChordInfo();
   bindEvents();
   updateFretboard();
