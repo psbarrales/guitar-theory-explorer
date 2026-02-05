@@ -92,6 +92,9 @@ const state = {
   diatonicChordTones: null
 };
 
+const STORAGE_KEY = "guitar-scale-lab-state-v1";
+const SIDEBAR_KEY = "guitar-scale-lab-sidebar-v1";
+
 const rootSelect = document.getElementById("rootSelect");
 const presetSelect = document.getElementById("presetSelect");
 const degreeToggles = document.getElementById("degreeToggles");
@@ -128,6 +131,126 @@ const clearDiatonicBtn = document.getElementById("clearDiatonic");
 const toggleSidebarBtn = document.getElementById("toggleSidebar");
 const sidebar = document.getElementById("sidebar");
 const layout = document.querySelector(".layout");
+
+function saveState() {
+  if (!window.localStorage) return;
+  const payload = {
+    rootIndex: state.rootIndex,
+    presetId: state.presetId,
+    degreeMask: state.degreeMask,
+    degreeAdjustments: state.degreeAdjustments,
+    fretCount: state.fretCount,
+    positionStart: state.positionStart,
+    positionWindowSize: state.positionWindowSize,
+    activePosition: state.activePosition,
+    volume: state.volume,
+    instrumentId: state.instrumentId,
+    midiOutputId: state.midiOutputId,
+    chordMode: state.chordMode,
+    showInversion: state.showInversion,
+    diatonicChordIndex: state.diatonicChordIndex,
+    chordNotes: state.chordNotes.map((note, index) => {
+      if (!note) return null;
+      return {
+        stringIndex: Number.isInteger(note.stringIndex) ? note.stringIndex : index,
+        fret: note.fret
+      };
+    })
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    // ignore storage errors
+  }
+}
+
+function applySavedChordNotes(rawNotes) {
+  const notes = new Array(6).fill(null);
+  if (!Array.isArray(rawNotes)) return notes;
+  rawNotes.forEach((raw, idx) => {
+    if (!raw) return;
+    const stringIndex = Number.isInteger(raw.stringIndex) ? raw.stringIndex : idx;
+    const fret = Number.isFinite(raw.fret) ? raw.fret : null;
+    if (stringIndex < 0 || stringIndex >= TUNING.length) return;
+    if (fret === null || fret < 0) return;
+    const cappedFret = Math.min(Math.round(fret), state.fretCount);
+    const midi = TUNING[stringIndex].midi + cappedFret;
+    notes[stringIndex] = {
+      stringIndex,
+      fret: cappedFret,
+      midi,
+      pitchClass: midi % 12
+    };
+  });
+  return notes;
+}
+
+function loadState() {
+  if (!window.localStorage) return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (Number.isInteger(saved.rootIndex) && saved.rootIndex >= 0 && saved.rootIndex < 12) {
+      state.rootIndex = saved.rootIndex;
+    }
+    if (typeof saved.presetId === "string" && SCALES.some((s) => s.id === saved.presetId)) {
+      state.presetId = saved.presetId;
+    }
+    if (Array.isArray(saved.degreeMask) && saved.degreeMask.length === 7) {
+      state.degreeMask = saved.degreeMask.map(Boolean);
+    }
+    if (Array.isArray(saved.degreeAdjustments) && saved.degreeAdjustments.length === 7) {
+      state.degreeAdjustments = saved.degreeAdjustments.map((value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return 0;
+        return Math.max(-2, Math.min(2, Math.round(num)));
+      });
+    }
+    if (Number.isInteger(saved.fretCount)) {
+      state.fretCount = Math.min(20, Math.max(12, saved.fretCount));
+    }
+    if (Number.isInteger(saved.positionStart)) {
+      state.positionStart = Math.max(1, saved.positionStart);
+    }
+    if (saved.positionWindowSize === 4 || saved.positionWindowSize === 5) {
+      state.positionWindowSize = saved.positionWindowSize;
+    }
+    if (Number.isInteger(saved.activePosition) && saved.activePosition >= 0 && saved.activePosition <= 4) {
+      state.activePosition = saved.activePosition;
+    }
+    if (typeof saved.volume === "number") {
+      state.volume = Math.max(0, Math.min(1, saved.volume));
+    }
+    if (typeof saved.instrumentId === "string" && INSTRUMENTS.some((i) => i.id === saved.instrumentId)) {
+      state.instrumentId = saved.instrumentId;
+    }
+    if (typeof saved.midiOutputId === "string") {
+      state.midiOutputId = saved.midiOutputId;
+    }
+    if (typeof saved.chordMode === "boolean") {
+      state.chordMode = saved.chordMode;
+    }
+    if (typeof saved.showInversion === "boolean") {
+      state.showInversion = saved.showInversion;
+    }
+    if (Number.isInteger(saved.diatonicChordIndex)) {
+      state.diatonicChordIndex = saved.diatonicChordIndex;
+    }
+    state.chordNotes = applySavedChordNotes(saved.chordNotes);
+  } catch (error) {
+    // ignore parse errors
+  }
+}
+
+function loadSidebarState() {
+  if (!window.localStorage) return;
+  const collapsed = localStorage.getItem(SIDEBAR_KEY) === "1";
+  if (collapsed) {
+    sidebar.classList.add("collapsed");
+    layout.classList.add("sidebar-collapsed");
+  }
+}
 
 class Synth {
   constructor() {
@@ -297,6 +420,10 @@ function buildDiatonicTriads() {
 function updateDiatonicChords() {
   if (!diatonicChords || !diatonicFormula) return;
   const triads = buildDiatonicTriads();
+  if (state.diatonicChordIndex !== null) {
+    const match = triads.find((item) => item.index === state.diatonicChordIndex);
+    state.diatonicChordTones = match ? match.tones : null;
+  }
   diatonicFormula.innerHTML = "";
   if (triads.length) {
     triads.forEach((chord, index) => {
@@ -967,6 +1094,7 @@ function updateFretboard() {
   buildFretboard();
   updateScaleSummary();
   updateChordInfo();
+  saveState();
 }
 
 function playNote(midi, duration = 0.6, velocity = 0.8) {
@@ -1164,6 +1292,7 @@ function bindEvents() {
     const positions = getPositions();
     const active = positions[state.activePosition];
     playScaleForRange(active);
+    saveState();
   });
 
   playAllBtn.addEventListener("click", () => {
@@ -1175,11 +1304,13 @@ function bindEvents() {
     chordHint.textContent = state.chordMode
       ? "Modo acorde activo. Click en notas para seleccionar."
       : "Click en el mastil para armar el acorde.";
+    saveState();
   });
 
   showInversionToggle.addEventListener("change", (event) => {
     state.showInversion = event.target.checked;
     updateChordInfo();
+    saveState();
   });
 
   playChordBtn.addEventListener("click", () => {
@@ -1202,22 +1333,31 @@ function bindEvents() {
       }
     }
     updateFretboard();
+    saveState();
   });
 
   clearDiatonicBtn.addEventListener("click", () => {
     state.diatonicChordIndex = null;
     state.diatonicChordTones = null;
     updateFretboard();
+    saveState();
   });
 
   clearChordBtn.addEventListener("click", () => {
     clearChord();
     updateFretboard();
+    saveState();
   });
 
   toggleSidebarBtn.addEventListener("click", () => {
     sidebar.classList.toggle("collapsed");
     layout.classList.toggle("sidebar-collapsed");
+    if (window.localStorage) {
+      localStorage.setItem(
+        SIDEBAR_KEY,
+        layout.classList.contains("sidebar-collapsed") ? "1" : "0"
+      );
+    }
   });
 
   midiOutputSelect.addEventListener("change", (event) => {
@@ -1227,25 +1367,32 @@ function bindEvents() {
       state.midiOutput = state.midiAccess.outputs.get(state.midiOutputId) || null;
       sendProgramChange();
     }
+    saveState();
   });
 
   instrumentSelect.addEventListener("change", (event) => {
     state.instrumentId = event.target.value;
     sendProgramChange();
+    saveState();
   });
 
   volumeInput.addEventListener("input", (event) => {
     state.volume = Number(event.target.value);
     volumeValue.textContent = `${Math.round(state.volume * 100)}%`;
+    saveState();
   });
 }
 
 function init() {
+  loadState();
+  loadSidebarState();
   buildRootOptions();
   buildPresetOptions();
   buildInstrumentOptions();
   buildDegreeToggles();
+  fretCountInput.value = state.fretCount;
   fretCountValue.textContent = state.fretCount;
+  volumeInput.value = state.volume;
   volumeValue.textContent = `${Math.round(state.volume * 100)}%`;
   updatePositionControls();
   chordModeToggle.checked = state.chordMode;
