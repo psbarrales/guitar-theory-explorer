@@ -391,16 +391,16 @@ export default function App() {
                 <p>Voicings entre trastes 0-12, span maximo de 5 y entre 3-6 cuerdas.</p>
               </div>
             </div>
-                    onClick={() => {
-                      playGeneratedChord(voicing);
-                      setSelectedGeneratedChord(voicing);
-                    }}
+            <div className="generated-chords-grid">
               {generatedScaleChords.map((voicing) => (
                 <button
                   key={voicing.id}
                   type="button"
                   className="generated-chord-btn"
-                  onClick={() => playGeneratedChord(voicing)}
+                  onClick={() => {
+                    playGeneratedChord(voicing);
+                    setSelectedGeneratedChord(voicing);
+                  }}
                   title={`Frets: ${voicing.frets}`}
                 >
                   <strong>{voicing.name}</strong>
