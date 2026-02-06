@@ -270,7 +270,8 @@ export function useGuitarLabState() {
         maxFret: Math.min(12, state.fretCount),
         maxSpan: 5,
         minStrings: 3,
-        maxStrings: 6
+        maxStrings: 6,
+        maxResults: 12000
       }),
     [scaleSet, state.fretCount]
   );
