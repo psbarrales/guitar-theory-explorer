@@ -81,16 +81,16 @@ export default function App() {
   const generatedChordFrets = selectedGeneratedChord
     ? selectedGeneratedChord.notes.map((note) => note.fret)
     : [];
-  const previewMinFret = generatedChordFrets.length
-    ? Math.max(0, Math.min(...generatedChordFrets) - 1)
+  const selectedGeneratedChordIndex = selectedGeneratedChord
+    ? generatedScaleChords.findIndex((item) => item.id === selectedGeneratedChord.id)
+    : -1;
+  const selectedChordPositionLabel = selectedGeneratedChordIndex >= 0
+    ? `${selectedGeneratedChordIndex + 1} de ${generatedScaleChords.length}`
+    : "";
+  const compactStartFret = generatedChordFrets.length
+    ? Math.max(0, Math.min(...generatedChordFrets))
     : 0;
-  const previewMaxFret = generatedChordFrets.length
-    ? Math.min(12, Math.max(...generatedChordFrets) + 1)
-    : 5;
-  const previewFrets = Array.from(
-    { length: previewMaxFret - previewMinFret + 1 },
-    (_, index) => previewMinFret + index
-  );
+  const compactFrets = Array.from({ length: 5 }, (_, index) => compactStartFret + index);
   const handlePositionClick = (position) => {
     setActivePosition(position.id);
     playScaleForRange(position);
@@ -392,9 +392,9 @@ export default function App() {
               </div>
             </div>
                     onClick={() => {
-                    playGeneratedChord(voicing);
-                    setSelectedGeneratedChord(voicing);
-                  }}
+                      playGeneratedChord(voicing);
+                      setSelectedGeneratedChord(voicing);
+                    }}
               {generatedScaleChords.map((voicing) => (
                 <button
                   key={voicing.id}
@@ -589,40 +589,36 @@ export default function App() {
             onClick={() => setSelectedGeneratedChord(null)}
             aria-label="Cerrar vista de acorde"
           />
-          <div className="generated-chord-modal-card">
-            <div className="generated-chord-modal-header">
-              <div>
-                <h3>{selectedGeneratedChord.name}</h3>
-                <p>Frets: {selectedGeneratedChord.frets}</p>
-              </div>
-              <button
-                type="button"
-                className="action ghost"
-                onClick={() => setSelectedGeneratedChord(null)}
-              >
-                Cerrar
-              </button>
-            </div>
-            <div className="mini-fretboard">
-              <div className="mini-fretboard-numbers">
-                <div />
-                {previewFrets.map((fret) => (
-                  <span key={`mini-fret-${fret}`}>{fret}</span>
+          <div className="generated-chord-modal-compact-card">
+            <button
+              type="button"
+              className="generated-chord-close"
+              onClick={() => setSelectedGeneratedChord(null)}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+            <h3>{selectedGeneratedChord.name}</h3>
+            <p className="generated-chord-counter">{selectedChordPositionLabel}</p>
+
+            <div className="compact-chord-grid">
+              <div className="compact-fret-header">
+                {compactFrets.map((fret) => (
+                  <span key={`compact-fret-${fret}`}>{fret}</span>
                 ))}
               </div>
               {TUNING.map((string, stringIndex) => {
                 const chordNote = selectedGeneratedChord.notes.find((note) => note.stringIndex === stringIndex);
                 return (
-                  <div className="mini-string-row" key={`mini-string-${stringIndex}`}>
-                    <strong>{string.label}</strong>
-                    {previewFrets.map((fret) => {
+                  <div className="compact-string-row" key={`compact-string-${stringIndex}`}>
+                    {compactFrets.map((fret) => {
                       const active = chordNote && chordNote.fret === fret;
                       return (
                         <span
-                          key={`mini-${stringIndex}-${fret}`}
-                          className={`mini-fret-dot ${active ? "active" : ""}`.trim()}
+                          key={`compact-${stringIndex}-${fret}`}
+                          className={`compact-dot ${active ? "active" : ""}`.trim()}
                         >
-                          {active ? NOTES[chordNote.pitchClass] : ""}
+                          {active ? fret : ""}
                         </span>
                       );
                     })}
@@ -630,6 +626,28 @@ export default function App() {
                 );
               })}
             </div>
+
+            <div className="compact-open-strings">
+              {TUNING.map((string, stringIndex) => {
+                const note = selectedGeneratedChord.notes.find((item) => item.stringIndex === stringIndex);
+                const isOpen = note && note.fret === 0;
+                return (
+                  <span
+                    key={`open-indicator-${string.id}`}
+                    className={`open-indicator ${isOpen ? "active" : ""}`.trim()}
+                    title={string.label}
+                  />
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              className="compact-play-btn"
+              onClick={() => playGeneratedChord(selectedGeneratedChord)}
+            >
+              ▶
+            </button>
           </div>
         </div>
       ) : null}
