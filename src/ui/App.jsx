@@ -81,7 +81,22 @@ export default function App() {
 
   return (
     <div className="page">
+      <div className="mobile-toolbar">
+        <button
+          type="button"
+          className="mobile-sidebar-toggle"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+        >
+          {sidebarCollapsed ? "Mostrar controles" : "Ocultar controles"}
+        </button>
+      </div>
       <div className={`layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`.trim()}>
+        <button
+          type="button"
+          className={`mobile-backdrop ${sidebarCollapsed ? "hidden" : ""}`.trim()}
+          onClick={() => setSidebarCollapsed(true)}
+          aria-label="Cerrar panel lateral"
+        />
         <aside className={`sidebar ${sidebarCollapsed ? "collapsed" : ""}`.trim()}>
           <div className="sidebar-header">
             <div>
