@@ -683,12 +683,18 @@ export default function App() {
                       <div className="compact-string-row" key={`compact-string-${stringIndex}`}>
                         {compactFrets.map((fret) => {
                           const active = chordNote && chordNote.fret === fret;
+                          const intervalLabel = active
+                            ? getNoteIntervalLabel(state.rootIndex, chordNote.pitchClass)
+                            : "";
+                          const noteLabel = active ? NOTES[chordNote.pitchClass] : "";
                           return (
                             <span
                               key={`compact-${stringIndex}-${fret}`}
                               className={`compact-dot ${active ? "active" : ""}`.trim()}
+                              data-interval={intervalLabel}
+                              title={active ? `${noteLabel} (${intervalLabel})` : undefined}
                             >
-                              {active ? fret : ""}
+                              {noteLabel}
                             </span>
                           );
                         })}
@@ -703,12 +709,18 @@ export default function App() {
               {TUNING.map((string, stringIndex) => {
                 const note = selectedGeneratedChord.notes.find((item) => item.stringIndex === stringIndex);
                 const isOpen = note && note.fret === 0;
+                const intervalLabel = isOpen ? getNoteIntervalLabel(state.rootIndex, note.pitchClass) : "";
+                const noteLabel = isOpen ? NOTES[note.pitchClass] : "";
                 return (
                   <span
                     key={`open-indicator-${string.id}`}
                     className={`open-indicator ${isOpen ? "active" : ""}`.trim()}
-                    title={string.label}
-                  />
+                    title={isOpen ? `${noteLabel} (${intervalLabel})` : string.label}
+                    data-note={noteLabel}
+                    data-interval={intervalLabel}
+                  >
+                    {noteLabel}
+                  </span>
                 );
               })}
             </div>
