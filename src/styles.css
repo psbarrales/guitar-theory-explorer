@@ -1012,6 +1012,16 @@ body {
   border-color: #1e1b18;
   color: #fff;
   font-weight: 700;
+  line-height: 1;
+}
+
+.compact-dot.active::after {
+  content: attr(data-interval);
+  position: absolute;
+  bottom: -10px;
+  font-size: clamp(0.5rem, calc(2.5rem / var(--compact-fret-count, 5)), 0.62rem);
+  color: #4d4d4d;
+  font-weight: 600;
 }
 
 .compact-open-strings {
@@ -1022,15 +1032,31 @@ body {
 }
 
 .open-indicator {
-  width: 14px;
-  height: 14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid #1e1b18;
   margin: 0 auto;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: transparent;
+  position: relative;
 }
 
 .open-indicator.active {
   background: #1e1b18;
+  color: #fff;
+}
+
+.open-indicator.active::after {
+  content: attr(data-interval);
+  position: absolute;
+  bottom: -10px;
+  font-size: 0.55rem;
+  color: #4d4d4d;
+  font-weight: 600;
 }
 
 .compact-play-btn {
