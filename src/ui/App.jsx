@@ -114,10 +114,14 @@ export default function App() {
   const selectedChordPositionLabel = selectedGeneratedChordIndex >= 0 && activeChordGroup
     ? `${selectedGeneratedChordIndex + 1} de ${activeChordGroup.voicings.length}`
     : "";
-  const compactStartFret = generatedChordFrets.length
-    ? Math.max(0, Math.min(...generatedChordFrets))
-    : 0;
-  const compactFrets = Array.from({ length: 5 }, (_, index) => compactStartFret + index);
+  const compactFrettedNotes = generatedChordFrets.filter((fret) => fret > 0);
+  const compactFrets = compactFrettedNotes.length
+    ? Array.from(
+      { length: Math.max(...compactFrettedNotes) - Math.min(...compactFrettedNotes) + 1 },
+      (_, index) => Math.min(...compactFrettedNotes) + index
+    )
+    : [];
+  const formatVoicingFrets = (fretsSignature) => fretsSignature.split("-").reverse().join("-");
   const handlePositionClick = (position) => {
     setActivePosition(position.id);
     playScaleForRange(position);
@@ -657,35 +661,39 @@ export default function App() {
                     playGeneratedChord(voicing);
                   }}
                 >
-                  {voicing.frets} · {voicing.stringCount} cuerdas · span {voicing.span}
+                  {formatVoicingFrets(voicing.frets)} · {voicing.stringCount} cuerdas · span {voicing.span}
                 </button>
               ))}
             </div>
 
             <div className="compact-chord-grid">
-              <div className="compact-fret-header">
-                {compactFrets.map((fret) => (
-                  <span key={`compact-fret-${fret}`}>{fret}</span>
-                ))}
-              </div>
-              {TUNING.map((string, stringIndex) => {
-                const chordNote = selectedGeneratedChord.notes.find((note) => note.stringIndex === stringIndex);
-                return (
-                  <div className="compact-string-row" key={`compact-string-${stringIndex}`}>
-                    {compactFrets.map((fret) => {
-                      const active = chordNote && chordNote.fret === fret;
-                      return (
-                        <span
-                          key={`compact-${stringIndex}-${fret}`}
-                          className={`compact-dot ${active ? "active" : ""}`.trim()}
-                        >
-                          {active ? fret : ""}
-                        </span>
-                      );
-                    })}
+              {compactFrets.length ? (
+                <>
+                  <div className="compact-fret-header">
+                    {compactFrets.map((fret) => (
+                      <span key={`compact-fret-${fret}`}>{fret}</span>
+                    ))}
                   </div>
-                );
-              })}
+                  {TUNING.map((string, stringIndex) => {
+                    const chordNote = selectedGeneratedChord.notes.find((note) => note.stringIndex === stringIndex);
+                    return (
+                      <div className="compact-string-row" key={`compact-string-${stringIndex}`}>
+                        {compactFrets.map((fret) => {
+                          const active = chordNote && chordNote.fret === fret;
+                          return (
+                            <span
+                              key={`compact-${stringIndex}-${fret}`}
+                              className={`compact-dot ${active ? "active" : ""}`.trim()}
+                            >
+                              {active ? fret : ""}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </>
+              ) : null}
             </div>
 
             <div className="compact-open-strings">
