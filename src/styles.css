@@ -602,6 +602,37 @@ body {
   color: #e4f4f1;
 }
 
+.generated-chords {
+  display: grid;
+  gap: 14px;
+}
+
+.generated-chords-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.generated-chord-btn {
+  border: 1px solid rgba(30, 27, 24, 0.2);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.generated-chord-btn strong {
+  font-size: 0.95rem;
+}
+
+.generated-chord-btn span,
+.generated-chord-btn small {
+  color: var(--ink-soft);
+}
+
 .fretboard-wrap {
   overflow-x: auto;
 }
@@ -847,4 +878,145 @@ body {
   text-align: center;
   color: var(--ink-soft);
   margin-top: 12px;
+}
+
+.generated-chord-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+}
+
+.generated-chord-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(20, 15, 10, 0.55);
+}
+
+.generated-chord-modal-compact-card {
+  position: relative;
+  z-index: 1;
+  width: min(320px, calc(100vw - 24px));
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 44px rgba(20, 15, 10, 0.25);
+  padding: 12px 14px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.generated-chord-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(30, 27, 24, 0.08);
+  cursor: pointer;
+}
+
+.generated-chord-modal-compact-card h3 {
+  margin: 0;
+  text-align: center;
+  color: #f06500;
+  font-family: "Fraunces", serif;
+  font-size: 2rem;
+}
+
+.generated-chord-counter {
+  margin: 0;
+  text-align: center;
+  color: #8f8f8f;
+  font-size: 0.95rem;
+}
+
+.compact-chord-grid {
+  border: 2px solid #1e1b18;
+  border-radius: 10px;
+  padding: 8px 6px 10px;
+  background: #fafafa;
+  display: grid;
+  gap: 4px;
+}
+
+.compact-fret-header,
+.compact-string-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.compact-fret-header span {
+  text-align: center;
+  font-size: 0.72rem;
+  color: #6f6f6f;
+}
+
+.compact-string-row {
+  position: relative;
+}
+
+.compact-string-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px solid #bcbcbc;
+}
+
+.compact-dot {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid transparent;
+  color: transparent;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+}
+
+.compact-dot.active {
+  background: #1e1b18;
+  border-color: #1e1b18;
+  color: #fff;
+  font-weight: 700;
+}
+
+.compact-open-strings {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.open-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #1e1b18;
+  margin: 0 auto;
+}
+
+.open-indicator.active {
+  background: #1e1b18;
+}
+
+.compact-play-btn {
+  border: 0;
+  border-radius: 12px;
+  background: #f1f1f1;
+  color: #1e1b18;
+  font-size: 1.6rem;
+  line-height: 1;
+  padding: 10px;
+  cursor: pointer;
 }

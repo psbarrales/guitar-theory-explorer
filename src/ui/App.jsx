@@ -33,6 +33,7 @@ export default function App() {
     positions,
     activePosition,
     diatonicTriads,
+    generatedScaleChords,
     diatonicChordTones,
     maxPositionStart,
     chordDisplayName,
@@ -42,6 +43,7 @@ export default function App() {
     handleNoteClick,
     playScaleForRange,
     playChord,
+    playGeneratedChord,
     setRootIndex,
     applyPreset,
     toggleDegree,
@@ -74,6 +76,21 @@ export default function App() {
     ? diatonicTriads.map((item) => item.numeral)
     : [];
 
+  const [selectedGeneratedChord, setSelectedGeneratedChord] = useState(null);
+
+  const generatedChordFrets = selectedGeneratedChord
+    ? selectedGeneratedChord.notes.map((note) => note.fret)
+    : [];
+  const selectedGeneratedChordIndex = selectedGeneratedChord
+    ? generatedScaleChords.findIndex((item) => item.id === selectedGeneratedChord.id)
+    : -1;
+  const selectedChordPositionLabel = selectedGeneratedChordIndex >= 0
+    ? `${selectedGeneratedChordIndex + 1} de ${generatedScaleChords.length}`
+    : "";
+  const compactStartFret = generatedChordFrets.length
+    ? Math.max(0, Math.min(...generatedChordFrets))
+    : 0;
+  const compactFrets = Array.from({ length: 5 }, (_, index) => compactStartFret + index);
   const handlePositionClick = (position) => {
     setActivePosition(position.id);
     playScaleForRange(position);
@@ -367,6 +384,35 @@ export default function App() {
             </div>
           </section>
 
+          <section className="panel generated-chords">
+            <div className="diatonic-header">
+              <div>
+                <h2>Acordes generados de la escala</h2>
+                <p>Voicings entre trastes 0-12, span maximo de 5 y entre 3-6 cuerdas.</p>
+              </div>
+            </div>
+                    onClick={() => {
+                      playGeneratedChord(voicing);
+                      setSelectedGeneratedChord(voicing);
+                    }}
+              {generatedScaleChords.map((voicing) => (
+                <button
+                  key={voicing.id}
+                  type="button"
+                  className="generated-chord-btn"
+                  onClick={() => playGeneratedChord(voicing)}
+                  title={`Frets: ${voicing.frets}`}
+                >
+                  <strong>{voicing.name}</strong>
+                  <span>{voicing.frets}</span>
+                  <small>
+                    {voicing.stringCount} cuerdas · span {voicing.span}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </section>
+
           <section className="panel">
             <div className="positions-header">
               <h2>Posiciones CAGED</h2>
@@ -535,6 +581,76 @@ export default function App() {
           </section>
         </main>
       </div>
+      {selectedGeneratedChord ? (
+        <div className="generated-chord-modal" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="generated-chord-modal-backdrop"
+            onClick={() => setSelectedGeneratedChord(null)}
+            aria-label="Cerrar vista de acorde"
+          />
+          <div className="generated-chord-modal-compact-card">
+            <button
+              type="button"
+              className="generated-chord-close"
+              onClick={() => setSelectedGeneratedChord(null)}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+            <h3>{selectedGeneratedChord.name}</h3>
+            <p className="generated-chord-counter">{selectedChordPositionLabel}</p>
+
+            <div className="compact-chord-grid">
+              <div className="compact-fret-header">
+                {compactFrets.map((fret) => (
+                  <span key={`compact-fret-${fret}`}>{fret}</span>
+                ))}
+              </div>
+              {TUNING.map((string, stringIndex) => {
+                const chordNote = selectedGeneratedChord.notes.find((note) => note.stringIndex === stringIndex);
+                return (
+                  <div className="compact-string-row" key={`compact-string-${stringIndex}`}>
+                    {compactFrets.map((fret) => {
+                      const active = chordNote && chordNote.fret === fret;
+                      return (
+                        <span
+                          key={`compact-${stringIndex}-${fret}`}
+                          className={`compact-dot ${active ? "active" : ""}`.trim()}
+                        >
+                          {active ? fret : ""}
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="compact-open-strings">
+              {TUNING.map((string, stringIndex) => {
+                const note = selectedGeneratedChord.notes.find((item) => item.stringIndex === stringIndex);
+                const isOpen = note && note.fret === 0;
+                return (
+                  <span
+                    key={`open-indicator-${string.id}`}
+                    className={`open-indicator ${isOpen ? "active" : ""}`.trim()}
+                    title={string.label}
+                  />
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              className="compact-play-btn"
+              onClick={() => playGeneratedChord(selectedGeneratedChord)}
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
