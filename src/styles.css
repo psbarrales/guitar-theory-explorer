@@ -879,3 +879,92 @@ body {
   color: var(--ink-soft);
   margin-top: 12px;
 }
+
+.generated-chord-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+}
+
+.generated-chord-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(20, 15, 10, 0.6);
+}
+
+.generated-chord-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(860px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  background: var(--panel);
+  border-radius: 18px;
+  box-shadow: var(--panel-shadow);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.generated-chord-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.generated-chord-modal-header h3 {
+  margin: 0;
+  font-family: "Fraunces", serif;
+}
+
+.generated-chord-modal-header p {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+}
+
+.mini-fretboard {
+  display: grid;
+  gap: 8px;
+}
+
+.mini-fretboard-numbers,
+.mini-string-row {
+  display: grid;
+  grid-template-columns: 46px repeat(auto-fit, minmax(40px, 1fr));
+  align-items: center;
+  gap: 6px;
+}
+
+.mini-fretboard-numbers span {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.mini-string-row strong {
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+.mini-fret-dot {
+  border: 1px solid rgba(30, 27, 24, 0.2);
+  border-radius: 999px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  background: #f6f1e8;
+  font-size: 0.78rem;
+  color: transparent;
+}
+
+.mini-fret-dot.active {
+  background: #1f7a6f;
+  border-color: #1f7a6f;
+  color: #fff;
+  font-weight: 700;
+}
