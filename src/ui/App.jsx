@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   formatFretMarkers,
   formatFretNumbers,
@@ -78,15 +78,41 @@ export default function App() {
     : [];
 
   const [selectedGeneratedChord, setSelectedGeneratedChord] = useState(null);
+  const [selectedGeneratedChordName, setSelectedGeneratedChordName] = useState("");
+  const [generatedSectionCollapsed, setGeneratedSectionCollapsed] = useState(false);
+
+  const groupedGeneratedChords = useMemo(() => {
+    const groups = new Map();
+    generatedScaleChords.forEach((voicing) => {
+      if (!groups.has(voicing.name)) {
+        groups.set(voicing.name, []);
+      }
+      groups.get(voicing.name).push(voicing);
+    });
+
+    return Array.from(groups.entries())
+      .map(([name, voicings]) => ({
+        name,
+        voicings,
+        count: voicings.length,
+        minStrings: Math.min(...voicings.map((item) => item.stringCount)),
+        maxStrings: Math.max(...voicings.map((item) => item.stringCount))
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [generatedScaleChords]);
+
+  const activeChordGroup = selectedGeneratedChordName
+    ? groupedGeneratedChords.find((group) => group.name === selectedGeneratedChordName)
+    : null;
 
   const generatedChordFrets = selectedGeneratedChord
     ? selectedGeneratedChord.notes.map((note) => note.fret)
     : [];
-  const selectedGeneratedChordIndex = selectedGeneratedChord
-    ? generatedScaleChords.findIndex((item) => item.id === selectedGeneratedChord.id)
+  const selectedGeneratedChordIndex = selectedGeneratedChord && activeChordGroup
+    ? activeChordGroup.voicings.findIndex((item) => item.id === selectedGeneratedChord.id)
     : -1;
-  const selectedChordPositionLabel = selectedGeneratedChordIndex >= 0
-    ? `${selectedGeneratedChordIndex + 1} de ${generatedScaleChords.length}`
+  const selectedChordPositionLabel = selectedGeneratedChordIndex >= 0 && activeChordGroup
+    ? `${selectedGeneratedChordIndex + 1} de ${activeChordGroup.voicings.length}`
     : "";
   const compactStartFret = generatedChordFrets.length
     ? Math.max(0, Math.min(...generatedChordFrets))
@@ -389,29 +415,39 @@ export default function App() {
             <div className="diatonic-header">
               <div>
                 <h2>Acordes generados de la escala</h2>
-                <p>Voicings entre trastes 0-12, span maximo de 5 y entre 3-6 cuerdas.</p>
+                <p>Agrupados por nombre. Abre cada nota para ver todas sus formas (3 a 6 cuerdas).</p>
               </div>
+              <button
+                type="button"
+                className="action ghost"
+                onClick={() => setGeneratedSectionCollapsed(!generatedSectionCollapsed)}
+              >
+                {generatedSectionCollapsed ? "Mostrar" : "Minimizar"}
+              </button>
             </div>
-            <div className="generated-chords-grid">
-              {generatedScaleChords.map((voicing) => (
-                <button
-                  key={voicing.id}
-                  type="button"
-                  className="generated-chord-btn"
-                  onClick={() => {
-                    playGeneratedChord(voicing);
-                    setSelectedGeneratedChord(voicing);
-                  }}
-                  title={`Frets: ${voicing.frets}`}
-                >
-                  <strong>{voicing.name}</strong>
-                  <span>{voicing.frets}</span>
-                  <small>
-                    {voicing.stringCount} cuerdas · span {voicing.span}
-                  </small>
-                </button>
-              ))}
-            </div>
+            {!generatedSectionCollapsed ? (
+              <div className="generated-chords-grid">
+                {groupedGeneratedChords.map((group) => (
+                  <button
+                    key={group.name}
+                    type="button"
+                    className="generated-chord-btn"
+                    onClick={() => {
+                      setSelectedGeneratedChordName(group.name);
+                      setSelectedGeneratedChord(group.voicings[0]);
+                      playGeneratedChord(group.voicings[0]);
+                    }}
+                    title={`${group.count} formas para ${group.name}`}
+                  >
+                    <strong>{group.name}</strong>
+                    <span>{group.count} formas</span>
+                    <small>
+                      {group.minStrings}-{group.maxStrings} cuerdas
+                    </small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           <section className="panel">
@@ -582,25 +618,49 @@ export default function App() {
           </section>
         </main>
       </div>
-      {selectedGeneratedChord ? (
+      {selectedGeneratedChord && activeChordGroup ? (
         <div className="generated-chord-modal" role="dialog" aria-modal="true">
           <button
             type="button"
             className="generated-chord-modal-backdrop"
-            onClick={() => setSelectedGeneratedChord(null)}
+            onClick={() => {
+              setSelectedGeneratedChord(null);
+              setSelectedGeneratedChordName("");
+            }}
             aria-label="Cerrar vista de acorde"
           />
           <div className="generated-chord-modal-compact-card">
             <button
               type="button"
               className="generated-chord-close"
-              onClick={() => setSelectedGeneratedChord(null)}
+              onClick={() => {
+                setSelectedGeneratedChord(null);
+                setSelectedGeneratedChordName("");
+              }}
               aria-label="Cerrar"
             >
               ×
             </button>
             <h3>{selectedGeneratedChord.name}</h3>
             <p className="generated-chord-counter">{selectedChordPositionLabel}</p>
+
+            <div className="generated-chord-variations">
+              {activeChordGroup.voicings.map((voicing) => (
+                <button
+                  type="button"
+                  key={voicing.id}
+                  className={`generated-variation-btn ${
+                    selectedGeneratedChord.id === voicing.id ? "active" : ""
+                  }`.trim()}
+                  onClick={() => {
+                    setSelectedGeneratedChord(voicing);
+                    playGeneratedChord(voicing);
+                  }}
+                >
+                  {voicing.frets} · {voicing.stringCount} cuerdas · span {voicing.span}
+                </button>
+              ))}
+            </div>
 
             <div className="compact-chord-grid">
               <div className="compact-fret-header">
