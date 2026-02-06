@@ -100,3 +100,93 @@ export function getInversionLabel(chordData) {
   if (index === 3) return "3ra inversion";
   return "Inversion";
 }
+
+export function generateScaleChordVoicings({
+  scaleSet,
+  tuning,
+  minFret = 0,
+  maxFret = 12,
+  maxSpan = 5,
+  minStrings = 3,
+  maxStrings = 6,
+  maxResults = 180
+}) {
+  if (!scaleSet || !tuning || !tuning.length) return [];
+
+  const voicings = [];
+  const seen = new Set();
+  const highestStringCount = Math.min(maxStrings, tuning.length);
+
+  for (let stringCount = minStrings; stringCount <= highestStringCount; stringCount += 1) {
+    for (let start = 0; start <= tuning.length - stringCount; start += 1) {
+      const group = Array.from({ length: stringCount }, (_, idx) => start + idx);
+      const optionsByString = group.map((stringIndex) => {
+        const baseMidi = tuning[stringIndex].midi;
+        const options = [];
+        for (let fret = minFret; fret <= maxFret; fret += 1) {
+          const midi = baseMidi + fret;
+          const pitchClass = midi % 12;
+          if (!scaleSet.has(pitchClass)) continue;
+          options.push({ stringIndex, fret, midi, pitchClass });
+        }
+        return options;
+      });
+
+      if (optionsByString.some((options) => !options.length)) continue;
+
+      const walk = (depth, picked, minPickedFret, maxPickedFret) => {
+        if (voicings.length >= maxResults) return;
+        if (depth === optionsByString.length) {
+          const sorted = [...picked].sort((a, b) => a.midi - b.midi);
+          const uniquePitchClasses = new Set(sorted.map((note) => note.pitchClass));
+          if (uniquePitchClasses.size < 3) return;
+          const chordData = detectChordData(sorted);
+          if (!chordData) return;
+
+          const signature = tuning
+            .map((_, index) => {
+              const note = sorted.find((item) => item.stringIndex === index);
+              return note ? note.fret : "x";
+            })
+            .join("-");
+          if (seen.has(signature)) return;
+          seen.add(signature);
+
+          const span = maxPickedFret - minPickedFret;
+          const slash = chordData.bassPc !== chordData.rootPc
+            ? `/${pitchClassName(chordData.bassPc)}`
+            : "";
+
+          voicings.push({
+            id: `${chordData.name}${slash}-${signature}`,
+            name: `${chordData.name}${slash}`,
+            notes: sorted,
+            stringCount: sorted.length,
+            span,
+            minFret: minPickedFret,
+            maxFret: maxPickedFret,
+            frets: signature
+          });
+          return;
+        }
+
+        optionsByString[depth].forEach((note) => {
+          const nextMin = minPickedFret === null ? note.fret : Math.min(minPickedFret, note.fret);
+          const nextMax = maxPickedFret === null ? note.fret : Math.max(maxPickedFret, note.fret);
+          if (nextMax - nextMin > maxSpan) return;
+          walk(depth + 1, [...picked, note], nextMin, nextMax);
+        });
+      };
+
+      walk(0, [], null, null);
+      if (voicings.length >= maxResults) break;
+    }
+    if (voicings.length >= maxResults) break;
+  }
+
+  return voicings.sort((a, b) => {
+    if (a.name !== b.name) return a.name.localeCompare(b.name);
+    if (a.span !== b.span) return a.span - b.span;
+    return a.minFret - b.minFret;
+  });
+}

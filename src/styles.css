@@ -602,6 +602,37 @@ body {
   color: #e4f4f1;
 }
 
+.generated-chords {
+  display: grid;
+  gap: 14px;
+}
+
+.generated-chords-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.generated-chord-btn {
+  border: 1px solid rgba(30, 27, 24, 0.2);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.generated-chord-btn strong {
+  font-size: 0.95rem;
+}
+
+.generated-chord-btn span,
+.generated-chord-btn small {
+  color: var(--ink-soft);
+}
+
 .fretboard-wrap {
   overflow-x: auto;
 }

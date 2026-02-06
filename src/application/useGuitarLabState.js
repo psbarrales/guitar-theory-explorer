@@ -11,7 +11,12 @@ import {
   noteNameFromIndex
 } from "../domain/theory.js";
 import { buildCagedPositions } from "../domain/positions.js";
-import { detectChordData, getInversionLabel, pitchClassName } from "../domain/chords.js";
+import {
+  detectChordData,
+  generateScaleChordVoicings,
+  getInversionLabel,
+  pitchClassName
+} from "../domain/chords.js";
 import { Synth } from "../infrastructure/synth.js";
 import { INSTRUMENTS } from "../infrastructure/sound.js";
 
@@ -256,6 +261,19 @@ export function useGuitarLabState() {
   const chordData = useMemo(() => detectChordData(chordSelection), [chordSelection]);
 
   const diatonicTriads = useMemo(() => buildDiatonicTriads(state), [state]);
+  const generatedScaleChords = useMemo(
+    () =>
+      generateScaleChordVoicings({
+        scaleSet,
+        tuning: TUNING,
+        minFret: 0,
+        maxFret: Math.min(12, state.fretCount),
+        maxSpan: 5,
+        minStrings: 3,
+        maxStrings: 6
+      }),
+    [scaleSet, state.fretCount]
+  );
   const diatonicChordTones = useMemo(() => {
     if (state.diatonicChordIndex === null) return null;
     const chord = diatonicTriads.find((item) => item.index === state.diatonicChordIndex);
@@ -430,6 +448,20 @@ export function useGuitarLabState() {
     });
   }, [chordSelection, flashNote, playNote]);
 
+  const playGeneratedChord = useCallback(
+    (voicing) => {
+      if (!voicing || !voicing.notes || !voicing.notes.length) return;
+      voicing.notes.forEach((note, idx) => {
+        const delay = idx * 60;
+        window.setTimeout(() => {
+          playNote(note.midi, 1.0, 0.85);
+          flashNote(`${note.stringIndex}-${note.fret}`);
+        }, delay);
+      });
+    },
+    [flashNote, playNote]
+  );
+
   const setRootIndex = useCallback((value) => {
     setState((prev) => ({ ...prev, rootIndex: value }));
   }, []);
@@ -599,6 +631,7 @@ export function useGuitarLabState() {
     positions,
     activePosition,
     diatonicTriads,
+    generatedScaleChords,
     diatonicChordTones,
     maxPositionStart,
     chordDisplayName,
@@ -608,6 +641,7 @@ export function useGuitarLabState() {
     handleNoteClick,
     playScaleForRange,
     playChord,
+    playGeneratedChord,
     setRootIndex,
     applyPreset,
     toggleDegree,

@@ -33,6 +33,7 @@ export default function App() {
     positions,
     activePosition,
     diatonicTriads,
+    generatedScaleChords,
     diatonicChordTones,
     maxPositionStart,
     chordDisplayName,
@@ -42,6 +43,7 @@ export default function App() {
     handleNoteClick,
     playScaleForRange,
     playChord,
+    playGeneratedChord,
     setRootIndex,
     applyPreset,
     toggleDegree,
@@ -362,6 +364,32 @@ export default function App() {
                 >
                   <strong>{chord.numeral}</strong>
                   <span>{chord.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel generated-chords">
+            <div className="diatonic-header">
+              <div>
+                <h2>Acordes generados de la escala</h2>
+                <p>Voicings entre trastes 0-12, span maximo de 5 y entre 3-6 cuerdas.</p>
+              </div>
+            </div>
+            <div className="generated-chords-grid">
+              {generatedScaleChords.map((voicing) => (
+                <button
+                  key={voicing.id}
+                  type="button"
+                  className="generated-chord-btn"
+                  onClick={() => playGeneratedChord(voicing)}
+                  title={`Frets: ${voicing.frets}`}
+                >
+                  <strong>{voicing.name}</strong>
+                  <span>{voicing.frets}</span>
+                  <small>
+                    {voicing.stringCount} cuerdas · span {voicing.span}
+                  </small>
                 </button>
               ))}
             </div>
