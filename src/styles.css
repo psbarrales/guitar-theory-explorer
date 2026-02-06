@@ -969,13 +969,13 @@ body {
 .compact-fret-header,
 .compact-string-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(var(--compact-fret-count, 5), minmax(0, 1fr));
+  gap: clamp(2px, 0.8vw, 4px);
 }
 
 .compact-fret-header span {
   text-align: center;
-  font-size: 0.72rem;
+  font-size: clamp(0.62rem, 1.8vw, 0.72rem);
   color: #6f6f6f;
 }
 
@@ -995,8 +995,8 @@ body {
 .compact-dot {
   position: relative;
   z-index: 1;
-  width: 28px;
-  height: 28px;
+  width: clamp(18px, calc(120px / var(--compact-fret-count, 5) + 10px), 28px);
+  aspect-ratio: 1;
   margin: 0 auto;
   border-radius: 50%;
   background: transparent;
@@ -1004,7 +1004,7 @@ body {
   color: transparent;
   display: grid;
   place-items: center;
-  font-size: 0.7rem;
+  font-size: clamp(0.58rem, calc(3.2rem / var(--compact-fret-count, 5)), 0.7rem);
 }
 
 .compact-dot.active {

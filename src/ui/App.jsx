@@ -666,7 +666,10 @@ export default function App() {
               ))}
             </div>
 
-            <div className="compact-chord-grid">
+            <div
+              className="compact-chord-grid"
+              style={{ "--compact-fret-count": Math.max(compactFrets.length, 1) }}
+            >
               {compactFrets.length ? (
                 <>
                   <div className="compact-fret-header">
