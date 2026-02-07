@@ -679,8 +679,20 @@ export default function App() {
                   </div>
                   {TUNING.map((string, stringIndex) => {
                     const chordNote = selectedGeneratedChord.notes.find((note) => note.stringIndex === stringIndex);
+                    const isOpenString = chordNote && chordNote.fret === 0;
+                    const openStringLabel = isOpenString ? "O" : "X";
+                    const openStringTitle = isOpenString
+                      ? `Cuerda al aire (${NOTES[chordNote.pitchClass]})`
+                      : "No tocar esta cuerda";
                     return (
                       <div className="compact-string-row" key={`compact-string-${stringIndex}`}>
+                        <span
+                          className={`compact-open-marker ${isOpenString ? "active" : "muted"}`.trim()}
+                          title={openStringTitle}
+                          aria-label={openStringTitle}
+                        >
+                          {openStringLabel}
+                        </span>
                         {compactFrets.map((fret) => {
                           const active = chordNote && chordNote.fret === fret;
                           const intervalLabel = active
@@ -703,26 +715,6 @@ export default function App() {
                   })}
                 </>
               ) : null}
-            </div>
-
-            <div className="compact-open-strings">
-              {TUNING.map((string, stringIndex) => {
-                const note = selectedGeneratedChord.notes.find((item) => item.stringIndex === stringIndex);
-                const isOpen = note && note.fret === 0;
-                const intervalLabel = isOpen ? getNoteIntervalLabel(state.rootIndex, note.pitchClass) : "";
-                const noteLabel = isOpen ? NOTES[note.pitchClass] : "";
-                return (
-                  <span
-                    key={`open-indicator-${string.id}`}
-                    className={`open-indicator ${isOpen ? "active" : ""}`.trim()}
-                    title={isOpen ? `${noteLabel} (${intervalLabel})` : string.label}
-                    data-note={noteLabel}
-                    data-interval={intervalLabel}
-                  >
-                    {noteLabel}
-                  </span>
-                );
-              })}
             </div>
 
             <button

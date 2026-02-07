@@ -969,8 +969,15 @@ body {
 .compact-fret-header,
 .compact-string-row {
   display: grid;
-  grid-template-columns: repeat(var(--compact-fret-count, 5), minmax(0, 1fr));
   gap: clamp(2px, 0.8vw, 4px);
+}
+
+.compact-fret-header {
+  grid-template-columns: repeat(var(--compact-fret-count, 5), minmax(0, 1fr));
+}
+
+.compact-string-row {
+  grid-template-columns: 24px repeat(var(--compact-fret-count, 5), minmax(0, 1fr));
 }
 
 .compact-fret-header span {
@@ -1024,39 +1031,22 @@ body {
   font-weight: 600;
 }
 
-.compact-open-strings {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  padding: 0 12px;
-}
-
-.open-indicator {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid #1e1b18;
-  margin: 0 auto;
+.compact-open-marker {
   display: grid;
   place-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: transparent;
-  position: relative;
+  width: 24px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #1e1b18;
+  z-index: 1;
 }
 
-.open-indicator.active {
-  background: #1e1b18;
-  color: #fff;
+.compact-open-marker.active {
+  color: #1f7a6f;
 }
 
-.open-indicator.active::after {
-  content: attr(data-interval);
-  position: absolute;
-  bottom: -10px;
-  font-size: 0.55rem;
-  color: #4d4d4d;
-  font-weight: 600;
+.compact-open-marker.muted {
+  color: #8a8a8a;
 }
 
 .compact-play-btn {
