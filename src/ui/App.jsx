@@ -10,6 +10,7 @@ import {
 } from "../application/useGuitarLabState.js";
 import { INSTRUMENTS } from "../infrastructure/sound.js";
 import { NOTES, SCALES, TUNING } from "../domain/theory.js";
+import { CONSERVATORY_PROGRAM } from "../domain/conservatoryCourse.js";
 
 const DEGREE_OPTIONS = [
   { value: -2, label: "bb" },
@@ -80,6 +81,7 @@ export default function App() {
   const [selectedGeneratedChord, setSelectedGeneratedChord] = useState(null);
   const [selectedGeneratedChordName, setSelectedGeneratedChordName] = useState("");
   const [generatedSectionCollapsed, setGeneratedSectionCollapsed] = useState(false);
+  const [courseDrawerOpen, setCourseDrawerOpen] = useState(false);
 
   const groupedGeneratedChords = useMemo(() => {
     const groups = new Map();
@@ -129,6 +131,16 @@ export default function App() {
 
   return (
     <div className="page">
+      <nav className="top-nav">
+        <div className="top-nav-links">
+          <a href="#explorer">Explorador</a>
+          <a href="#diatonic">Progresion</a>
+          <a href="#fretboard">Diapason</a>
+        </div>
+        <button type="button" className="action" onClick={() => setCourseDrawerOpen(true)}>
+          Curso de teoria (Conservatorio)
+        </button>
+      </nav>
       <div className="mobile-toolbar">
         <button
           type="button"
@@ -277,7 +289,7 @@ export default function App() {
         </aside>
 
         <main className="content">
-          <section className="hero compact">
+          <section id="explorer" className="hero compact">
             <div>
               <p className="eyebrow">Escala activa</p>
               <h1>{scaleName}</h1>
@@ -370,7 +382,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="panel diatonic-chords">
+          <section id="diatonic" className="panel diatonic-chords">
             <div className="diatonic-header">
               <div>
                 <h2>Progresion diatonica</h2>
@@ -528,7 +540,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="panel fretboard-wrap">
+          <section id="fretboard" className="panel fretboard-wrap">
             <div className="fretboard-header">
               <div className="legend">
                 <span className="chip root">Tonica</span>
@@ -622,6 +634,54 @@ export default function App() {
           </section>
         </main>
       </div>
+
+      {courseDrawerOpen ? (
+        <div className="course-drawer-layer" role="dialog" aria-modal="true" aria-label="Curso de teoria">
+          <button
+            type="button"
+            className="course-drawer-backdrop"
+            onClick={() => setCourseDrawerOpen(false)}
+            aria-label="Cerrar curso"
+          />
+          <aside className="course-drawer">
+            <div className="course-drawer-header">
+              <div>
+                <p className="eyebrow">Programa completo</p>
+                <h2>Plan de teoria musical para guitarra (6 semestres)</h2>
+                <p>
+                  Ruta curricular inspirada en conservatorio: teoria, entrenamiento auditivo,
+                  armonia, lectura, tecnica y proyecto final.
+                </p>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setCourseDrawerOpen(false)}>
+                Cerrar
+              </button>
+            </div>
+
+            <div className="course-semester-grid">
+              {CONSERVATORY_PROGRAM.map((semester) => (
+                <article key={semester.semester} className="course-semester-card">
+                  <h3>{semester.semester}</h3>
+                  <p>{semester.focus}</p>
+                  <div className="course-topics-grid">
+                    {semester.topics.map((topic) => (
+                      <section key={`${semester.semester}-${topic.title}`} className="course-topic-card">
+                        <img src={topic.image} alt={topic.title} loading="lazy" />
+                        <div>
+                          <h4>{topic.title}</h4>
+                          <p><strong>Objetivo:</strong> {topic.objective}</p>
+                          <p><strong>Practica recomendada:</strong> {topic.practice}</p>
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
       {selectedGeneratedChord && activeChordGroup ? (
         <div className="generated-chord-modal" role="dialog" aria-modal="true">
           <button
