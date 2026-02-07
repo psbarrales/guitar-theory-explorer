@@ -20,6 +20,74 @@ const DEGREE_OPTIONS = [
   { value: 2, label: "x" }
 ];
 
+const WIKI_PROFILES = [
+  {
+    match: /(interval|interválico)/i,
+    theoryFocus: "mide distancia sonora entre notas y define tensión, color y función armónica o melódica",
+    guitarTip: "canta cada intervalo antes de tocarlo para fijar la referencia auditiva"
+  },
+  {
+    match: /(ritmo|compás|subdivisión|polirritmia)/i,
+    theoryFocus: "organiza el tiempo musical mediante pulso, acento, subdivisión y jerarquía métrica",
+    guitarTip: "practica con metrónomo en negras, luego en subdivisiones y finalmente con acentos desplazados"
+  },
+  {
+    match: /(escala|modo|modal)/i,
+    theoryFocus: "define colecciones de alturas y su comportamiento melódico, armónico y expresivo",
+    guitarTip: "toca el mismo material en al menos dos zonas del mástil y en una sola cuerda"
+  },
+  {
+    match: /(acorde|armonía|cadencia|dominante|modulación|función)/i,
+    theoryFocus: "explica relaciones verticales entre sonidos y dirección tonal dentro de una frase o forma",
+    guitarTip: "arpegia cada acorde y conecta voces guía (3ª y 7ª) entre cambios"
+  },
+  {
+    match: /(lectura|notación|partitura|clave)/i,
+    theoryFocus: "traduce símbolos escritos en decisiones sonoras precisas de altura, duración y articulación",
+    guitarTip: "lee compases cortos diariamente sin detener el pulso, incluso con errores menores"
+  },
+  {
+    match: /(contrapunto|voz|conducción)/i,
+    theoryFocus: "coordina independencia de líneas y equilibrio entre movimiento melódico y coherencia armónica",
+    guitarTip: "practica dos voces separando dinámicas para escuchar claramente cada línea"
+  }
+];
+
+function getWikiProfile(concept, topic) {
+  return WIKI_PROFILES.find((profile) => profile.match.test(concept) || profile.match.test(topic)) || {
+    theoryFocus: "estructura el lenguaje musical y permite relacionar lectura, audición, análisis y ejecución",
+    guitarTip: "combina estudio lento, repetición consciente y aplicación inmediata en repertorio"
+  };
+}
+
+function buildStudyWikiEntry(entry) {
+  const profile = getWikiProfile(entry.concept, entry.topic);
+  const relatedConcepts = entry.topicConcepts
+    .filter((item) => item !== entry.concept)
+    .slice(0, 3)
+    .join(", ");
+
+  return {
+    definition: `En este programa, ${entry.concept} se estudia como un concepto central porque ${profile.theoryFocus}.`,
+    importance: `Su dominio permite conectar el tema "${entry.topic}" con decisiones musicales concretas: qué tocar, por qué suena así y cómo resolverlo en contexto real.`,
+    guitarTransfer: `${entry.guitarContext}. Como rutina, ${profile.guitarTip}.`,
+    practiceSteps: [
+      `Analiza un ejemplo escrito del tema y subraya dónde aparece ${entry.concept}.`,
+      `Traslada el concepto al diapasón en dos posiciones y un tempo cómodo (50–70 bpm).`,
+      "Integra el concepto en una frase corta o progresión de 4 compases y grábate.",
+      "Evalúa afinación, ritmo y claridad; corrige una sola variable por repetición."
+    ],
+    frequentErrors: [
+      "Memorizar nombres sin escuchar su efecto sonoro.",
+      "Practicar rápido antes de controlar pulso, articulación y acentos.",
+      "No relacionar teoría con repertorio, improvisación o acompañamiento real."
+    ],
+    connections: relatedConcepts
+      ? `Para profundizar, vincula este contenido con: ${relatedConcepts}.`
+      : "Este concepto funciona como base transversal para los siguientes temas del semestre."
+  };
+}
+
 export default function App() {
   const {
     state,
@@ -82,6 +150,28 @@ export default function App() {
   const [selectedGeneratedChordName, setSelectedGeneratedChordName] = useState("");
   const [generatedSectionCollapsed, setGeneratedSectionCollapsed] = useState(false);
   const [courseDrawerOpen, setCourseDrawerOpen] = useState(false);
+  const [selectedStudyItem, setSelectedStudyItem] = useState(null);
+
+  const studyContentEntries = useMemo(
+    () => CONSERVATORY_PROGRAM.flatMap((semester, semesterIndex) => (
+      semester.topics.flatMap((topic, topicIndex) => (
+        topic.concepts.map((concept, conceptIndex) => ({
+          id: `${semesterIndex}-${topicIndex}-${conceptIndex}`,
+          semester: semester.semester,
+          topic: topic.title,
+        topicSummary: topic.summary,
+        guitarContext: topic.guitarContext,
+        semesterFocus: semester.focus,
+        bibliography: semester.bibliography,
+        topicConcepts: topic.concepts,
+        concept,
+        conceptIndex,
+        conceptTotal: topic.concepts.length
+        }))
+      ))
+    )),
+    []
+  );
 
   const groupedGeneratedChords = useMemo(() => {
     const groups = new Map();
@@ -128,6 +218,17 @@ export default function App() {
     setActivePosition(position.id);
     playScaleForRange(position);
   };
+
+  const selectedStudyIndex = selectedStudyItem
+    ? studyContentEntries.findIndex((entry) => entry.id === selectedStudyItem.id)
+    : -1;
+  const previousStudyItem = selectedStudyIndex > 0
+    ? studyContentEntries[selectedStudyIndex - 1]
+    : null;
+  const nextStudyItem = selectedStudyIndex >= 0 && selectedStudyIndex < studyContentEntries.length - 1
+    ? studyContentEntries[selectedStudyIndex + 1]
+    : null;
+  const selectedStudyWiki = selectedStudyItem ? buildStudyWikiEntry(selectedStudyItem) : null;
 
   return (
     <div className="page">
@@ -659,7 +760,7 @@ export default function App() {
             </div>
 
             <div className="course-semester-grid">
-              {CONSERVATORY_PROGRAM.map((semester) => (
+              {CONSERVATORY_PROGRAM.map((semester, semesterIndex) => (
                 <article key={semester.semester} className="course-semester-card">
                   <h3>{semester.semester}</h3>
                   <p>{semester.focus}</p>
@@ -674,7 +775,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="course-topics-grid">
-                    {semester.topics.map((topic) => (
+                    {semester.topics.map((topic, topicIndex) => (
                       <section key={`${semester.semester}-${topic.title}`} className="course-topic-card">
                         <img src={topic.image} alt={topic.title} loading="lazy" />
                         <div>
@@ -683,8 +784,21 @@ export default function App() {
                           <details open>
                             <summary>Contenido de estudio</summary>
                             <ul>
-                              {topic.concepts.map((item) => (
-                                <li key={`${topic.title}-content-${item}`}>{item}</li>
+                              {topic.concepts.map((item, conceptIndex) => (
+                                <li key={`${topic.title}-content-${item}`}>
+                                  <button
+                                    type="button"
+                                    className="course-topic-link"
+                                    onClick={() => {
+                                      const selectedId = `${semesterIndex}-${topicIndex}-${conceptIndex}`;
+                                      const selectedEntry = studyContentEntries.find((entry) => entry.id === selectedId);
+                                      setSelectedStudyItem(selectedEntry || null);
+                                      setCourseDrawerOpen(false);
+                                    }}
+                                  >
+                                    {item}
+                                  </button>
+                                </li>
                               ))}
                             </ul>
                           </details>
@@ -697,6 +811,102 @@ export default function App() {
               ))}
             </div>
           </aside>
+        </div>
+      ) : null}
+
+      {selectedStudyItem ? (
+        <div className="study-page-layer" role="dialog" aria-modal="true" aria-label="Estudio completo">
+          <button
+            type="button"
+            className="study-page-backdrop"
+            aria-label="Cerrar estudio"
+            onClick={() => setSelectedStudyItem(null)}
+          />
+          <article className="study-page">
+            <header className="study-page-header">
+              <div>
+                <p className="eyebrow">{selectedStudyItem.semester}</p>
+                <h2>{selectedStudyItem.concept}</h2>
+                <p className="study-page-topic">Tema: {selectedStudyItem.topic}</p>
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setSelectedStudyItem(null)}>
+                Cerrar
+              </button>
+            </header>
+
+            <div className="study-page-content">
+              <section>
+                <h3>Enfoque del estudio completo</h3>
+                <p>
+                  {selectedStudyWiki?.definition}
+                </p>
+                <p>{selectedStudyWiki?.importance}</p>
+              </section>
+
+              <section>
+                <h3>Base teórica y marco del semestre</h3>
+                <p><strong>Foco del semestre:</strong> {selectedStudyItem.semesterFocus}</p>
+                <p>{selectedStudyItem.topicSummary}</p>
+                <p>{selectedStudyWiki?.connections}</p>
+              </section>
+
+              <section>
+                <h3>Plan práctico para guitarra</h3>
+                <ol>
+                  {selectedStudyWiki?.practiceSteps.map((step) => (
+                    <li key={`${selectedStudyItem.id}-${step}`}>{step}</li>
+                  ))}
+                </ol>
+              </section>
+
+              <section>
+                <h3>Aplicación directa al instrumento</h3>
+                <p>{selectedStudyWiki?.guitarTransfer}</p>
+              </section>
+
+              <section>
+                <h3>Errores comunes al estudiar este contenido</h3>
+                <ul>
+                  {selectedStudyWiki?.frequentErrors.map((error) => (
+                    <li key={`${selectedStudyItem.id}-${error}`}>{error}</li>
+                  ))}
+                </ul>
+              </section>
+
+              <section>
+                <h3>Bibliografía recomendada</h3>
+                <ul>
+                  {selectedStudyItem.bibliography.map((book) => (
+                    <li key={`${selectedStudyItem.id}-${book}`}>{book}</li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+
+            <footer className="study-page-footer">
+              <span>
+                Contenido {selectedStudyItem.conceptIndex + 1} de {selectedStudyItem.conceptTotal} en este tema
+              </span>
+              <div>
+                <button
+                  type="button"
+                  className="action"
+                  disabled={!previousStudyItem}
+                  onClick={() => previousStudyItem && setSelectedStudyItem(previousStudyItem)}
+                >
+                  ← Anterior
+                </button>
+                <button
+                  type="button"
+                  className="action"
+                  disabled={!nextStudyItem}
+                  onClick={() => nextStudyItem && setSelectedStudyItem(nextStudyItem)}
+                >
+                  Siguiente →
+                </button>
+              </div>
+            </footer>
+          </article>
         </div>
       ) : null}
 
