@@ -665,14 +665,6 @@ export default function App() {
                   <p>{semester.focus}</p>
                   <div className="course-semester-meta">
                     <div>
-                      <h4>Resultados esperados</h4>
-                      <ul>
-                        {semester.outcomes.map((outcome) => (
-                          <li key={`${semester.semester}-${outcome}`}>{outcome}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
                       <h4>Bibliografia sugerida</h4>
                       <ul>
                         {semester.bibliography.map((book) => (
@@ -687,41 +679,16 @@ export default function App() {
                         <img src={topic.image} alt={topic.title} loading="lazy" />
                         <div>
                           <h4>{topic.title}</h4>
-                          <p>{topic.description}</p>
-                          <p><strong>Objetivo:</strong> {topic.objective}</p>
-                          <p><strong>Practica recomendada:</strong> {topic.practice}</p>
-                          <p><strong>Carga estimada:</strong> {topic.estimatedHours}</p>
-                          <details>
-                            <summary>Contenidos detallados</summary>
+                          <p>{topic.summary}</p>
+                          <details open>
+                            <summary>Contenido de estudio</summary>
                             <ul>
-                              {topic.keyContents.map((item) => (
+                              {topic.concepts.map((item) => (
                                 <li key={`${topic.title}-content-${item}`}>{item}</li>
                               ))}
                             </ul>
                           </details>
-                          <details>
-                            <summary>Metodologia y herramientas</summary>
-                            <ul>
-                              {topic.methodology.map((item) => (
-                                <li key={`${topic.title}-method-${item}`}>{item}</li>
-                              ))}
-                            </ul>
-                            <p><strong>Herramientas:</strong> {topic.tools.join(", ")}</p>
-                          </details>
-                          <details>
-                            <summary>Evaluacion, entregables y proyecto</summary>
-                            <ul>
-                              {topic.assessment.map((item) => (
-                                <li key={`${topic.title}-assess-${item}`}>{item}</li>
-                              ))}
-                            </ul>
-                            <ul>
-                              {topic.deliverables.map((item) => (
-                                <li key={`${topic.title}-deliver-${item}`}>{item}</li>
-                              ))}
-                            </ul>
-                            <p><strong>Proyecto semestral:</strong> {topic.semesterProject}</p>
-                          </details>
+                          <p><strong>Aplicacion en guitarra:</strong> {topic.guitarContext}</p>
                         </div>
                       </section>
                     ))}
