@@ -1200,3 +1200,50 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.course-semester-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.course-semester-meta h4 {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+}
+
+.course-semester-meta ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  display: grid;
+  gap: 4px;
+}
+
+.course-topic-card details {
+  border: 1px solid rgba(30, 27, 24, 0.12);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: #fffdf8;
+}
+
+.course-topic-card summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.course-topic-card ul {
+  margin: 8px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 900px) {
+  .course-semester-meta {
+    grid-template-columns: 1fr;
+  }
+}
