@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   formatFretMarkers,
   formatFretNumbers,
@@ -148,7 +148,7 @@ export default function App() {
 
   const [selectedGeneratedChord, setSelectedGeneratedChord] = useState(null);
   const [selectedGeneratedChordName, setSelectedGeneratedChordName] = useState("");
-  const [generatedSectionCollapsed, setGeneratedSectionCollapsed] = useState(false);
+  const [generatedSectionCollapsed, setGeneratedSectionCollapsed] = useState(true);
   const [courseDrawerOpen, setCourseDrawerOpen] = useState(false);
   const [selectedStudyItem, setSelectedStudyItem] = useState(null);
 
@@ -191,6 +191,10 @@ export default function App() {
         maxStrings: Math.max(...voicings.map((item) => item.stringCount))
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }, [generatedScaleChords]);
+
+  useEffect(() => {
+    setGeneratedSectionCollapsed(true);
   }, [generatedScaleChords]);
 
   const activeChordGroup = selectedGeneratedChordName
