@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   formatFretMarkers,
   formatFretNumbers,
@@ -6,9 +6,10 @@ import {
   formatScaleName,
   formatScaleNotesText,
   getNoteIntervalLabel,
+  STRUM_PATTERNS,
   useGuitarLabState
 } from "../application/useGuitarLabState.js";
-import { INSTRUMENTS } from "../infrastructure/sound.js";
+import { GM_INSTRUMENTS } from "../infrastructure/sound.js";
 import { NOTES, SCALES, TUNING } from "../domain/theory.js";
 import { CONSERVATORY_PROGRAM } from "../domain/conservatoryCourse.js";
 
@@ -96,6 +97,11 @@ export default function App() {
     chordHint,
     playingNotes,
     midiOutputs,
+    metronomeBeat,
+    backingBeat,
+    backingChordLabel,
+    backingActiveEventIndex,
+    backingChordEvents,
     scaleSet,
     scaleNotes,
     formulaTokens,
@@ -116,6 +122,7 @@ export default function App() {
     playScaleForRange,
     playChord,
     playGeneratedChord,
+    playStrum,
     playDiatonicArpeggio,
     setRootIndex,
     applyPreset,
@@ -126,7 +133,26 @@ export default function App() {
     setPositionWindowSize,
     setActivePosition,
     setVolume,
-    setInstrumentId,
+    setMetronomeEnabled,
+    setMetronomeBpm,
+    setMetronomeBeatsPerBar,
+    setMetronomeMode,
+    setMetronomeVolume,
+    tapTempo,
+    setBackingEnabled,
+    setBackingBpm,
+    setBackingBeatsPerBar,
+    setBackingBars,
+    setBackingDrumVolume,
+    setBackingDrumProgram,
+    setBackingDrumNote,
+    setBackingChordVolume,
+    toggleBackingCell,
+    addBackingChord,
+    setBackingChords,
+    updateBackingChord,
+    removeBackingChord,
+    setMainProgram,
     setMidiOutputId,
     toggleChordMode,
     toggleShowInversion,
@@ -156,6 +182,37 @@ export default function App() {
   const [generatedSectionCollapsed, setGeneratedSectionCollapsed] = useState(true);
   const [courseDrawerOpen, setCourseDrawerOpen] = useState(false);
   const [selectedStudyItem, setSelectedStudyItem] = useState(null);
+  const [metronomeDrawerOpen, setMetronomeDrawerOpen] = useState(true);
+  const [backingModalOpen, setBackingModalOpen] = useState(false);
+  const [backingEditIndex, setBackingEditIndex] = useState(null);
+  const [backingChordName, setBackingChordName] = useState("");
+  const [backingChordVoicingId, setBackingChordVoicingId] = useState("");
+  const [backingChordDuration, setBackingChordDuration] = useState(4);
+  const [backingChordPattern, setBackingChordPattern] = useState("down_8");
+  const [dragState, setDragState] = useState(null);
+  const chordTrackRef = useRef(null);
+  const dragMovedRef = useRef(false);
+
+  const DRUM_NOTE_OPTIONS = [
+    { value: 35, label: "Acoustic Bass Drum (35)" },
+    { value: 36, label: "Bass Drum 1 (36)" },
+    { value: 38, label: "Acoustic Snare (38)" },
+    { value: 40, label: "Electric Snare (40)" },
+    { value: 42, label: "Closed Hi-hat (42)" },
+    { value: 44, label: "Pedal Hi-hat (44)" },
+    { value: 46, label: "Open Hi-hat (46)" },
+    { value: 49, label: "Crash Cymbal 1 (49)" },
+    { value: 51, label: "Ride Cymbal 1 (51)" },
+    { value: 45, label: "Low Tom (45)" },
+    { value: 47, label: "Low-mid Tom (47)" },
+    { value: 50, label: "High Tom (50)" },
+    { value: 43, label: "High Floor Tom (43)" },
+    { value: 41, label: "Low Floor Tom (41)" },
+    { value: 57, label: "Crash Cymbal 2 (57)" },
+    { value: 55, label: "Splash Cymbal (55)" },
+    { value: 37, label: "Side Stick (37)" },
+    { value: 39, label: "Hand Clap (39)" }
+  ];
 
   const studyContentEntries = useMemo(
     () => CONSERVATORY_PROGRAM.flatMap((semester, semesterIndex) => (
@@ -198,6 +255,269 @@ export default function App() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [generatedScaleChords]);
 
+  const backingTotalBeats = backingChordEvents.totalBeats;
+  const backingStepCount = state.backingBeatsPerBar * 4;
+  const backingUsedBeats = useMemo(() => {
+    const ranges = state.backingChords
+      .filter((item) => Number.isFinite(item.startBeat))
+      .map((item) => ({
+        start: item.startBeat,
+        end: item.startBeat + Math.max(1, item.duration || 1)
+      }))
+      .sort((a, b) => a.start - b.start);
+    let total = 0;
+    let cursor = -1;
+    ranges.forEach((range) => {
+      if (range.end <= cursor) return;
+      const start = Math.max(range.start, cursor);
+      total += Math.max(0, range.end - start);
+      cursor = range.end;
+    });
+    return Math.min(backingTotalBeats, total);
+  }, [backingTotalBeats, state.backingChords]);
+  const backingRemainingBeats = Math.max(0, backingTotalBeats - backingUsedBeats);
+
+  const openBackingModal = (index = null) => {
+    setBackingEditIndex(index);
+    if (index !== null && state.backingChords[index]) {
+      const chord = state.backingChords[index];
+      setBackingChordName(chord.name);
+      setBackingChordVoicingId(chord.voicingId);
+      setBackingChordDuration(chord.duration);
+      setBackingChordPattern(chord.strumPatternId || "down_8");
+    } else {
+      const firstGroup = groupedGeneratedChords[0];
+      const firstVoicing = firstGroup ? firstGroup.voicings[0] : null;
+      setBackingChordName(firstGroup ? firstGroup.name : "Acorde");
+      setBackingChordVoicingId(firstVoicing ? firstVoicing.id : "");
+      setBackingChordDuration(Math.min(4, state.backingBeatsPerBar));
+      setBackingChordPattern("down_8");
+    }
+    setBackingModalOpen(true);
+  };
+
+  const handleBackingSave = () => {
+    if (!backingChordVoicingId) return;
+    const payload = {
+      voicingId: backingChordVoicingId,
+      name: backingChordName || "Acorde",
+      duration: Math.max(1, Math.round(backingChordDuration)),
+      strumPatternId: backingChordPattern
+    };
+    if (backingEditIndex !== null) {
+      updateBackingChord(backingEditIndex, payload);
+    } else {
+      addBackingChord(payload);
+    }
+    setBackingModalOpen(false);
+    setBackingEditIndex(null);
+  };
+
+  const selectedBackingVoicing = useMemo(() => {
+    if (!backingChordVoicingId) return null;
+    const group = groupedGeneratedChords.find((item) => item.name === backingChordName);
+    return group?.voicings.find((voicing) => voicing.id === backingChordVoicingId) || null;
+  }, [backingChordName, backingChordVoicingId, groupedGeneratedChords]);
+
+  useEffect(() => {
+    if (!backingModalOpen || !selectedBackingVoicing) return;
+    playStrum(selectedBackingVoicing, backingChordPattern, backingChordDuration);
+  }, [
+    backingChordDuration,
+    backingChordPattern,
+    backingModalOpen,
+    playStrum,
+    selectedBackingVoicing
+  ]);
+
+  const renderCompactChord = (voicing) => {
+    if (!voicing || !voicing.notes?.length) return null;
+    const frettedNotes = voicing.notes.map((note) => note.fret);
+    const compactFrets = frettedNotes.length
+      ? Array.from(
+          { length: Math.max(...frettedNotes) - Math.min(...frettedNotes) + 1 },
+          (_, index) => Math.min(...frettedNotes) + index
+        )
+      : [];
+    return (
+      <div
+        className="compact-chord-grid backing-chord-preview"
+        style={{ "--compact-fret-count": Math.max(compactFrets.length, 1) }}
+      >
+        {compactFrets.length ? (
+          <>
+            <div className="compact-fret-header">
+              {compactFrets.map((fret) => (
+                <span key={`backing-compact-fret-${fret}`}>{fret}</span>
+              ))}
+            </div>
+            {TUNING.map((string, stringIndex) => {
+              const chordNote = voicing.notes.find((note) => note.stringIndex === stringIndex);
+              const isOpenString = chordNote && chordNote.fret === 0;
+              const openStringLabel = isOpenString ? "O" : "X";
+              return (
+                <div className="compact-string-row" key={`backing-compact-string-${stringIndex}`}>
+                  <span className={`compact-open-marker ${isOpenString ? "active" : "muted"}`.trim()}>
+                    {openStringLabel}
+                  </span>
+                  {compactFrets.map((fret) => {
+                    const active = chordNote && chordNote.fret === fret;
+                    const noteLabel = active ? NOTES[chordNote.pitchClass] : "";
+                    return (
+                      <span
+                        key={`backing-compact-${stringIndex}-${fret}`}
+                        className={`compact-dot ${active ? "active" : ""}`.trim()}
+                      >
+                        {noteLabel}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
+  const getBeatFromClientX = (clientX) => {
+    if (!chordTrackRef.current) return 0;
+    const rect = chordTrackRef.current.getBoundingClientRect();
+    const localX = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const beat = Math.round((localX / rect.width) * backingTotalBeats);
+    return Math.max(0, Math.min(backingTotalBeats - 1, beat));
+  };
+
+  const applyDragMove = (sourceIndex, targetBeat) => {
+    const items = [...state.backingChords];
+    const moving = items[sourceIndex];
+    if (!moving) return;
+    const duration = Math.max(1, moving.duration || 1);
+    const other = items
+      .filter((_, idx) => idx !== sourceIndex)
+      .filter((item) => Number.isFinite(item.startBeat))
+      .map((item) => ({
+        start: item.startBeat,
+        end: item.startBeat + Math.max(1, item.duration || 1)
+      }))
+      .sort((a, b) => a.start - b.start);
+
+    const overlapIndex = items.findIndex((item, idx) => {
+      if (idx === sourceIndex || !Number.isFinite(item.startBeat)) return false;
+      const start = item.startBeat;
+      const end = item.startBeat + Math.max(1, item.duration || 1);
+      return targetBeat >= start && targetBeat < end;
+    });
+
+    if (overlapIndex !== -1) {
+      const target = items[overlapIndex];
+      if (target) {
+        const movingStart = Number.isFinite(moving.startBeat) ? moving.startBeat : 0;
+        items[sourceIndex] = { ...moving, startBeat: target.startBeat };
+        items[overlapIndex] = { ...target, startBeat: movingStart };
+        setBackingChords(items);
+        return;
+      }
+    }
+
+    let minStart = 0;
+    let maxStart = Math.max(0, backingTotalBeats - duration);
+    other.forEach((range) => {
+      if (targetBeat >= range.end) {
+        minStart = Math.max(minStart, range.end);
+      }
+      if (targetBeat < range.start) {
+        maxStart = Math.min(maxStart, range.start - duration);
+      }
+    });
+
+    const nextStart = Math.max(minStart, Math.min(maxStart, targetBeat));
+    items[sourceIndex] = { ...moving, startBeat: nextStart };
+    setBackingChords(items);
+  };
+
+  const handleChordPointerMove = useCallback((event) => {
+    if (!dragState) return;
+    if (!chordTrackRef.current) return;
+    const rect = chordTrackRef.current.getBoundingClientRect();
+    const pxPerBeat = rect.width / backingTotalBeats;
+    const deltaBeats = Math.round((event.clientX - dragState.startX) / pxPerBeat);
+    if (deltaBeats !== 0) {
+      dragMovedRef.current = true;
+    }
+    if (dragState.type === "resize") {
+      const items = state.backingChords;
+      const current = items[dragState.index];
+      if (!current) return;
+      const startBeat = Number.isFinite(current.startBeat) ? current.startBeat : 0;
+      const other = items
+        .filter((_, idx) => idx !== dragState.index)
+        .filter((item) => Number.isFinite(item.startBeat))
+        .map((item) => ({
+          start: item.startBeat,
+          end: item.startBeat + Math.max(1, item.duration || 1)
+        }))
+        .sort((a, b) => a.start - b.start);
+      let maxEnd = backingTotalBeats;
+      other.forEach((range) => {
+        if (range.start > startBeat) {
+          maxEnd = Math.min(maxEnd, range.start);
+        }
+      });
+      const maxDuration = Math.max(1, maxEnd - startBeat);
+      const nextDuration = Math.max(1, Math.min(maxDuration, dragState.startDuration + deltaBeats));
+      updateBackingChord(dragState.index, { duration: nextDuration });
+      return;
+    }
+    const targetBeat = Math.max(0, Math.min(backingTotalBeats - 1, dragState.startBeat + deltaBeats));
+    applyDragMove(dragState.index, targetBeat);
+  }, [backingTotalBeats, dragState, applyDragMove, state.backingChords, updateBackingChord]);
+
+  const stopDrag = useCallback(() => {
+    if (!dragState) return;
+    setDragState(null);
+    window.removeEventListener("pointermove", handleChordPointerMove);
+    window.removeEventListener("pointerup", stopDrag);
+  }, [dragState, handleChordPointerMove]);
+
+  const startDrag = (event, type, sourceIndex, startBeat, startDuration) => {
+    event.preventDefault();
+    dragMovedRef.current = false;
+    setDragState({
+      type,
+      index: sourceIndex,
+      startX: event.clientX,
+      startBeat,
+      startDuration
+    });
+    window.addEventListener("pointermove", handleChordPointerMove);
+    window.addEventListener("pointerup", stopDrag);
+  };
+
+  const renderMiniChord = (voicing) => {
+    if (!voicing) return null;
+    return (
+      <div className="chord-markers">
+        {TUNING.map((string, stringIndex) => {
+          const chordNote = voicing.notes.find((note) => note.stringIndex === stringIndex) || null;
+          let marker = "X";
+          if (chordNote) {
+            marker = chordNote.fret === 0 ? "0" : String(chordNote.fret);
+          }
+          return (
+            <span
+              key={`chord-marker-${stringIndex}`}
+              className={`chord-marker ${marker === "X" ? "muted" : ""}`.trim()}
+            >
+              {marker}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   useEffect(() => {
     setGeneratedSectionCollapsed(true);
   }, [generatedScaleChords]);
@@ -222,7 +542,6 @@ export default function App() {
       (_, index) => Math.min(...compactFrettedNotes) + index
     )
     : [];
-  const formatVoicingFrets = (fretsSignature) => fretsSignature.split("-").reverse().join("-");
   const handlePositionClick = (position) => {
     setActivePosition(position.id);
     playScaleForRange(position);
@@ -328,12 +647,12 @@ export default function App() {
               <label htmlFor="instrumentSelect">Selector guitarra</label>
               <select
                 id="instrumentSelect"
-                value={state.instrumentId}
-                onChange={(event) => setInstrumentId(event.target.value)}
+                value={state.mainProgram}
+                onChange={(event) => setMainProgram(Number(event.target.value))}
               >
-                {INSTRUMENTS.map((instrument) => (
-                  <option key={instrument.id} value={instrument.id}>
-                    {instrument.name}
+                {GM_INSTRUMENTS.map((instrument) => (
+                  <option key={`gm-audio-${instrument.program}`} value={instrument.program}>
+                    {instrument.program + 1}. {instrument.name}
                   </option>
                 ))}
               </select>
@@ -369,6 +688,94 @@ export default function App() {
             <p className="midi-hint">
               MIDI externo disponible. Elige una salida para controlar tu sintetizador.
             </p>
+          </div>
+
+          <div className="sidebar-section metronome-section">
+            <button
+              type="button"
+              className="drawer-toggle"
+              onClick={() => setMetronomeDrawerOpen(!metronomeDrawerOpen)}
+              aria-expanded={metronomeDrawerOpen}
+            >
+              <span>Metronomo</span>
+              <span className="drawer-icon">{metronomeDrawerOpen ? "−" : "+"}</span>
+            </button>
+            {metronomeDrawerOpen ? (
+              <div className="drawer-body">
+                <div className="metronome-display">
+                  {Array.from({ length: state.metronomeBeatsPerBar }, (_, index) => (
+                    <span
+                      key={`beat-${index}`}
+                      className={`metronome-dot ${
+                        index === metronomeBeat && state.metronomeEnabled ? "active" : ""
+                      } ${index === 0 ? "downbeat" : ""}`.trim()}
+                    />
+                  ))}
+                </div>
+                <div className="control-group">
+                  <label htmlFor="metronomeBpm">BPM</label>
+                  <input
+                    id="metronomeBpm"
+                    type="number"
+                    min={30}
+                    max={300}
+                    step={1}
+                    value={state.metronomeBpm}
+                    onChange={(event) => setMetronomeBpm(Number(event.target.value))}
+                  />
+                  <div className="metronome-bpm-row">
+                    <span>{state.metronomeBpm} bpm</span>
+                    <button type="button" className="action ghost small" onClick={tapTempo}>
+                      Tap
+                    </button>
+                  </div>
+                </div>
+                <div className="control-group">
+                  <label htmlFor="metronomeBeats">Compas (1 de X)</label>
+                  <input
+                    id="metronomeBeats"
+                    type="range"
+                    min={1}
+                    max={16}
+                    value={state.metronomeBeatsPerBar}
+                    onChange={(event) => setMetronomeBeatsPerBar(Number(event.target.value))}
+                  />
+                  <span>{state.metronomeBeatsPerBar} tiempos</span>
+                </div>
+                <div className="control-group">
+                  <label htmlFor="metronomeMode">Tipo de click</label>
+                  <select
+                    id="metronomeMode"
+                    value={state.metronomeMode}
+                    onChange={(event) => setMetronomeMode(event.target.value)}
+                  >
+                    <option value="every">Click en cada marca</option>
+                    <option value="accent">Click en la 1 de X</option>
+                    <option value="alternating">Click A en la 1, toc B en el resto</option>
+                  </select>
+                </div>
+                <div className="control-group">
+                  <label htmlFor="metronomeVolume">Volumen metronomo</label>
+                  <input
+                    id="metronomeVolume"
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={state.metronomeVolume}
+                    onChange={(event) => setMetronomeVolume(Number(event.target.value))}
+                  />
+                  <span>{Math.round(state.metronomeVolume * 100)}%</span>
+                </div>
+                <button
+                  type="button"
+                  className="action"
+                  onClick={() => setMetronomeEnabled(!state.metronomeEnabled)}
+                >
+                  {state.metronomeEnabled ? "Detener" : "Iniciar"}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div className="sidebar-section">
@@ -781,6 +1188,302 @@ export default function App() {
               ))}
             </div>
           </section>
+
+          <section className="panel backing-track">
+            <div className="backing-header">
+              <div>
+                <h2>Backing track builder</h2>
+                <p>Programa bateria, define compases y arma la progresion de acordes.</p>
+              </div>
+              <button
+                type="button"
+                className="action"
+                onClick={() => setBackingEnabled(!state.backingEnabled)}
+              >
+                {state.backingEnabled ? "Detener" : "Reproducir"}
+              </button>
+            </div>
+
+            <div className="backing-controls">
+              <div className="control-group">
+                <label htmlFor="backingBpm">BPM</label>
+                <input
+                  id="backingBpm"
+                  type="number"
+                  min={30}
+                  max={300}
+                  step={1}
+                  value={state.backingBpm}
+                  onChange={(event) => setBackingBpm(Number(event.target.value))}
+                />
+              </div>
+              <div className="control-group">
+                <label htmlFor="backingBeats">Tiempos por compas</label>
+                <input
+                  id="backingBeats"
+                  type="number"
+                  min={1}
+                  max={16}
+                  step={1}
+                  value={state.backingBeatsPerBar}
+                  onChange={(event) => setBackingBeatsPerBar(Number(event.target.value))}
+                />
+              </div>
+              <div className="control-group">
+                <label htmlFor="backingBars">Compases</label>
+                <input
+                  id="backingBars"
+                  type="number"
+                  min={1}
+                  max={32}
+                  step={1}
+                  value={state.backingBars}
+                  onChange={(event) => setBackingBars(Number(event.target.value))}
+                />
+              </div>
+              <div className="control-group">
+                <label htmlFor="backingDrumVolume">Volumen bateria</label>
+                <input
+                  id="backingDrumVolume"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={state.backingDrumVolume}
+                  onChange={(event) => setBackingDrumVolume(Number(event.target.value))}
+                />
+                <span>{Math.round(state.backingDrumVolume * 100)}%</span>
+              </div>
+              <div className="control-group">
+                <label htmlFor="backingChordVolume">Volumen acordes</label>
+                <input
+                  id="backingChordVolume"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={state.backingChordVolume}
+                  onChange={(event) => setBackingChordVolume(Number(event.target.value))}
+                />
+                <span>{Math.round(state.backingChordVolume * 100)}%</span>
+              </div>
+            </div>
+
+            <div className="backing-visual">
+              <div className="metronome-display">
+                {Array.from({ length: state.backingBeatsPerBar }, (_, index) => (
+                  <span
+                    key={`backing-beat-${index}`}
+                    className={`metronome-dot ${
+                      index === backingBeat && state.backingEnabled ? "active" : ""
+                    } ${index === 0 ? "downbeat" : ""}`.trim()}
+                  />
+                ))}
+              </div>
+              <div className="backing-now">
+                <span className="label">Acorde actual</span>
+                <strong>{backingChordLabel || "Silencio"}</strong>
+              </div>
+            </div>
+
+            <div className="drum-grid">
+              <div
+                className="drum-row header"
+                style={{
+                  gridTemplateColumns: `90px 160px repeat(${backingStepCount}, minmax(20px, 1fr))`
+                }}
+              >
+                <span />
+                <span />
+                {Array.from({ length: backingStepCount }, (_, idx) => (
+                  <span key={`drum-head-${idx}`}>{idx + 1}</span>
+                ))}
+              </div>
+              {[
+                { key: "kick", label: "Bombo", selectable: "note" },
+                { key: "snare", label: "Caja", selectable: "note" },
+                { key: "hat", label: "Hi hat cerrado", selectable: "note" },
+                { key: "crash", label: "Crash", selectable: "note" },
+                { key: "tomLow", label: "Tom bajo", selectable: "note" },
+                { key: "tomHigh", label: "Tom alto", selectable: "note" },
+                { key: "perc1", label: "Sonido 1", selectable: true },
+                { key: "perc2", label: "Sonido 2", selectable: true }
+              ].map((row) => (
+                <div
+                  key={row.key}
+                  className="drum-row"
+                  style={{
+                    gridTemplateColumns: `90px 160px repeat(${backingStepCount}, minmax(20px, 1fr))`
+                  }}
+                >
+                  <span className="drum-label">{row.label}</span>
+                  {row.selectable === true ? (
+                    <select
+                      className="drum-sound-select"
+                      value={state.backingDrumPrograms[row.key]}
+                      onChange={(event) => setBackingDrumProgram(row.key, Number(event.target.value))}
+                      aria-label={`Sonido ${row.label}`}
+                    >
+                      {GM_INSTRUMENTS.map((instrument) => (
+                        <option key={`gm-${instrument.program}`} value={instrument.program}>
+                          {instrument.program + 1}. {instrument.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : row.selectable === "note" ? (
+                    <select
+                      className="drum-sound-select"
+                      value={state.backingDrumNotes[row.key]}
+                      onChange={(event) => setBackingDrumNote(row.key, Number(event.target.value))}
+                      aria-label={`Kit ${row.label}`}
+                    >
+                      {DRUM_NOTE_OPTIONS.map((note) => (
+                        <option key={`drum-note-${note.value}`} value={note.value}>
+                          {note.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="drum-sound-fixed">Kit fijo</span>
+                  )}
+                  {Array.from({ length: backingStepCount }, (_, idx) => {
+                    const active = state.backingDrums[row.key]?.[idx];
+                    return (
+                      <button
+                        type="button"
+                        key={`${row.key}-${idx}`}
+                        className={`drum-cell ${active ? "active" : ""}`.trim()}
+                        onClick={() => toggleBackingCell(row.key, idx)}
+                        aria-pressed={active}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            <div className="backing-chords">
+              <div className="backing-chords-header">
+                <div>
+                  <h3>Progresion (hasta 6 acordes)</h3>
+                  <p>
+                    {backingUsedBeats} de {backingTotalBeats} tiempos usados ·{" "}
+                    {backingRemainingBeats} libres
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="action ghost"
+                  onClick={() => openBackingModal()}
+                  disabled={state.backingChords.length >= 6}
+                >
+                  Agregar acorde
+                </button>
+              </div>
+              <div className="chord-timeline">
+                <div className="tab-wrap">
+                  <div className="tab-strings">
+                    {TUNING.map((string) => (
+                      <span key={`tab-label-${string.label}`}>{string.label}</span>
+                    ))}
+                  </div>
+                  <div
+                    ref={chordTrackRef}
+                    className="tab-track"
+                    style={{
+                      gridTemplateColumns: `repeat(${backingTotalBeats}, minmax(28px, 1fr))`,
+                      gridTemplateRows: "repeat(6, 1fr)"
+                    }}
+                  >
+                    {Array.from({ length: state.backingBars + 1 }, (_, barIndex) => (
+                      <span
+                        key={`bar-${barIndex}`}
+                        className="chord-barline"
+                        style={{
+                          gridColumnStart: barIndex * state.backingBeatsPerBar + 1,
+                          gridRow: "1 / -1"
+                        }}
+                      />
+                    ))}
+                    {backingChordEvents.events.map((evt) => (
+                      <button
+                        key={`evt-${evt.startBeat}`}
+                        type="button"
+                        className={`chord-block ${
+                          backingActiveEventIndex === evt.sourceIndex ? "active" : ""
+                        }`.trim()}
+                        style={{ gridColumn: `${evt.startBeat + 1} / span ${evt.duration}` }}
+                      onPointerDown={(event) =>
+                        startDrag(event, "drag", evt.sourceIndex, evt.startBeat ?? 0, evt.duration)
+                      }
+                      onClick={() => {
+                        if (dragMovedRef.current) return;
+                        openBackingModal(evt.sourceIndex);
+                      }}
+                    >
+                        <span className="chord-block-label">{evt.label}</span>
+                        {renderMiniChord(evt.voicing)}
+                        <span
+                          className="chord-resize-handle"
+                          onPointerDown={(event) => {
+                            event.stopPropagation();
+                            startDrag(event, "resize", evt.sourceIndex, evt.startBeat, evt.duration);
+                          }}
+                        />
+                      </button>
+                    ))}
+                    {Array.from({ length: 6 }, (_, stringIndex) =>
+                      Array.from({ length: backingTotalBeats }, (_, beatIndex) => (
+                        <span
+                          key={`tab-${stringIndex}-${beatIndex}`}
+                          className="tab-cell"
+                          style={{
+                            gridColumn: beatIndex + 1,
+                            gridRow: stringIndex + 1
+                          }}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="chord-bars-labels">
+                  {Array.from({ length: state.backingBars }, (_, idx) => (
+                    <span key={`bar-label-${idx}`}>Compas {idx + 1}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="backing-chords-list">
+                {state.backingChords.length ? (
+                  state.backingChords.map((chord, index) => (
+                    <div key={`${chord.voicingId}-${index}`} className="backing-chord-card">
+                      <div>
+                        <strong>{chord.name}</strong>
+                        <span>{chord.duration} tiempos</span>
+                      </div>
+                      <div className="backing-chord-actions">
+                        <button
+                          type="button"
+                          className="action ghost small"
+                          onClick={() => openBackingModal(index)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="action ghost small"
+                          onClick={() => removeBackingChord(index)}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="empty-state">Agrega acordes para completar el backing track.</p>
+                )}
+              </div>
+            </div>
+          </section>
         </main>
       </div>
 
@@ -997,7 +1700,7 @@ export default function App() {
                     playGeneratedChord(voicing);
                   }}
                 >
-                  {formatVoicingFrets(voicing.frets)} · {voicing.stringCount} cuerdas · span {voicing.span}
+                  {voicing.frets} · {voicing.stringCount} cuerdas · span {voicing.span}
                 </button>
               ))}
             </div>
@@ -1059,6 +1762,94 @@ export default function App() {
               onClick={() => playGeneratedChord(selectedGeneratedChord)}
             >
               ▶
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {backingModalOpen ? (
+        <div className="generated-chord-modal" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="generated-chord-modal-backdrop"
+            onClick={() => setBackingModalOpen(false)}
+            aria-label="Cerrar"
+          />
+          <div className="backing-chord-modal-card">
+            <button
+              type="button"
+              className="generated-chord-close"
+              onClick={() => setBackingModalOpen(false)}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+            <h3>Seleccionar acorde</h3>
+            <div className="control-group">
+              <label htmlFor="backingChordGroup">Acorde</label>
+              <select
+                id="backingChordGroup"
+                value={backingChordName}
+                onChange={(event) => {
+                  const name = event.target.value;
+                  const group = groupedGeneratedChords.find((item) => item.name === name);
+                  const voicing = group ? group.voicings[0] : null;
+                  setBackingChordName(name);
+                  setBackingChordVoicingId(voicing ? voicing.id : "");
+                }}
+              >
+                {groupedGeneratedChords.map((group) => (
+                  <option key={group.name} value={group.name}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="control-group">
+              <label htmlFor="backingChordVoicing">Forma</label>
+              <select
+                id="backingChordVoicing"
+                value={backingChordVoicingId}
+                onChange={(event) => setBackingChordVoicingId(event.target.value)}
+              >
+                {groupedGeneratedChords
+                  .find((item) => item.name === backingChordName)
+                  ?.voicings.map((voicing) => (
+                    <option key={voicing.id} value={voicing.id}>
+                      {voicing.frets} · {voicing.stringCount} cuerdas · span {voicing.span}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {renderCompactChord(selectedBackingVoicing)}
+            <div className="control-group">
+              <label htmlFor="backingChordDuration">Duracion (tiempos)</label>
+              <input
+                id="backingChordDuration"
+                type="number"
+                min={1}
+                max={16}
+                step={1}
+                value={backingChordDuration}
+                onChange={(event) => setBackingChordDuration(Number(event.target.value))}
+              />
+            </div>
+            <div className="control-group">
+              <label htmlFor="backingChordPattern">Rasgueo</label>
+              <select
+                id="backingChordPattern"
+                value={backingChordPattern}
+                onChange={(event) => setBackingChordPattern(event.target.value)}
+              >
+                {STRUM_PATTERNS.map((pattern) => (
+                  <option key={pattern.id} value={pattern.id}>
+                    {pattern.name} ({pattern.steps.join(" ")})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button type="button" className="action" onClick={handleBackingSave}>
+              {backingEditIndex !== null ? "Guardar cambios" : "Agregar acorde"}
             </button>
           </div>
         </div>
