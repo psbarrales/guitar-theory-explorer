@@ -536,15 +536,22 @@ export function useGuitarLabState() {
         }
       });
 
+      const uniqueNotes = [];
       notes
         .sort((a, b) => a.midi - b.midi)
-        .forEach((note, idx) => {
-          const delay = idx * 110;
-          window.setTimeout(() => {
-            playNote(note.midi, 0.45, 0.85);
-            flashNote(`${note.stringIndex}-${note.fret}`);
-          }, delay);
+        .forEach((note) => {
+          const last = uniqueNotes[uniqueNotes.length - 1];
+          if (last && last.midi === note.midi) return;
+          uniqueNotes.push(note);
         });
+
+      uniqueNotes.forEach((note, idx) => {
+        const delay = idx * 110;
+        window.setTimeout(() => {
+          playNote(note.midi, 0.45, 0.85);
+          flashNote(`${note.stringIndex}-${note.fret}`);
+        }, delay);
+      });
     },
     [flashNote, playNote, state.fretCount]
   );
