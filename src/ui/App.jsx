@@ -103,8 +103,10 @@ export default function App() {
     positions,
     activePosition,
     diatonicTriads,
+    diatonicArpeggios,
     generatedScaleChords,
     diatonicChordTones,
+    diatonicArpeggioTones,
     maxPositionStart,
     chordDisplayName,
     chordInversionLabel,
@@ -114,6 +116,7 @@ export default function App() {
     playScaleForRange,
     playChord,
     playGeneratedChord,
+    playDiatonicArpeggio,
     setRootIndex,
     applyPreset,
     toggleDegree,
@@ -129,7 +132,9 @@ export default function App() {
     toggleShowInversion,
     clearChord,
     setDiatonicChordIndex,
-    clearDiatonicChord
+    clearDiatonicChord,
+    setDiatonicArpeggioIndex,
+    clearDiatonicArpeggio
   } = useGuitarLabState();
 
   const scaleName = formatScaleName(matchingScale);
@@ -571,6 +576,40 @@ export default function App() {
             ) : null}
           </section>
 
+          <section className="panel diatonic-chords">
+            <div className="diatonic-header">
+              <div>
+                <h2>Arpegios completos de la escala</h2>
+                <p>Incluyen todas las notas del arpegio en el diapasón (puede haber varias por cuerda).</p>
+              </div>
+              <button type="button" className="action ghost" onClick={clearDiatonicArpeggio}>
+                Limpiar seleccion
+              </button>
+            </div>
+            <div className="diatonic-grid">
+              {diatonicArpeggios.map((arpeggio) => (
+                <button
+                  type="button"
+                  key={arpeggio.index}
+                  className={`diatonic-btn ${
+                    state.diatonicArpeggioIndex === arpeggio.index ? "active" : ""
+                  }`.trim()}
+                  onClick={() => {
+                    if (state.diatonicArpeggioIndex === arpeggio.index) {
+                      clearDiatonicArpeggio();
+                    } else {
+                      setDiatonicArpeggioIndex(arpeggio.index);
+                      playDiatonicArpeggio(arpeggio);
+                    }
+                  }}
+                >
+                  <strong>{arpeggio.numeral}</strong>
+                  <span>{arpeggio.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
           <section className="panel">
             <div className="positions-header">
               <h2>Posiciones CAGED</h2>
@@ -652,6 +691,7 @@ export default function App() {
                 <span className="chip scale">Nota de escala</span>
                 <span className="chip muted">Fuera de escala</span>
                 <span className="chip chord">Acorde</span>
+                <span className="chip" style={{ background: "#f7d774", color: "#47370e" }}>Arpegio</span>
               </div>
               <button type="button" className="action" onClick={() => playScaleForRange(null)}>
                 Reproducir escala completa
@@ -698,6 +738,9 @@ export default function App() {
                     const isDiatonicChordTone = diatonicChordTones
                       ? diatonicChordTones.has(noteIndex)
                       : false;
+                    const isDiatonicArpeggioTone = diatonicArpeggioTones
+                      ? diatonicArpeggioTones.has(noteIndex)
+                      : false;
                     const showScale = !activeNoteSet || inRange || isChordNote;
                     const intervalLabel = isChordNote
                       ? getNoteIntervalLabel(state.rootIndex, noteIndex)
@@ -712,6 +755,7 @@ export default function App() {
                     if (!isChordNote && activeNoteSet && inWindow && !inRange) classes.push("suppressed");
                     if (!isChordNote && inScale && !inWindow) classes.push("out-range");
                     if (isDiatonicChordTone && !isChordNote) classes.push("prog-chord");
+                    if (isDiatonicArpeggioTone && !isChordNote) classes.push("prog-arpeggio");
                     if (isChordNote) classes.push("chord");
                     if (playingNotes.has(noteId)) classes.push("playing");
 
