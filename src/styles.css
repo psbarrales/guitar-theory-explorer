@@ -839,6 +839,12 @@ body {
   box-shadow: 0 0 0 2px rgba(242, 166, 90, 0.3);
 }
 
+.note.prog-arpeggio span {
+  background: #f7d774;
+  color: #47370e;
+  box-shadow: 0 0 0 2px rgba(247, 215, 116, 0.35);
+}
+
 .note.chord span::after {
   content: attr(data-interval);
   display: block;

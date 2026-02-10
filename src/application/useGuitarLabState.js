@@ -41,7 +41,8 @@ const DEFAULT_STATE = {
   chordMode: true,
   chordNotes: new Array(6).fill(null),
   showInversion: true,
-  diatonicChordIndex: null
+  diatonicChordIndex: null,
+  diatonicArpeggioIndex: null
 };
 
 function applySavedChordNotes(rawNotes, fretCount) {
@@ -119,6 +120,9 @@ function loadStoredState() {
     if (Number.isFinite(saved.diatonicChordIndex)) {
       next.diatonicChordIndex = saved.diatonicChordIndex;
     }
+    if (Number.isFinite(saved.diatonicArpeggioIndex)) {
+      next.diatonicArpeggioIndex = saved.diatonicArpeggioIndex;
+    }
     if (Array.isArray(saved.chordNotes)) {
       next.chordNotes = applySavedChordNotes(saved.chordNotes, next.fretCount);
     }
@@ -155,6 +159,7 @@ function saveState(state) {
     chordMode: state.chordMode,
     showInversion: state.showInversion,
     diatonicChordIndex: state.diatonicChordIndex,
+    diatonicArpeggioIndex: state.diatonicArpeggioIndex,
     chordNotes: state.chordNotes.map((note, index) => {
       if (!note) return null;
       return {
@@ -168,6 +173,55 @@ function saveState(state) {
   } catch (error) {
     // ignore storage errors
   }
+}
+
+function getArpeggioQuality(thirdInt, fifthInt, seventhInt) {
+  if (thirdInt === 4 && fifthInt === 7 && seventhInt === 11) return "maj7";
+  if (thirdInt === 4 && fifthInt === 7 && seventhInt === 10) return "7";
+  if (thirdInt === 3 && fifthInt === 7 && seventhInt === 10) return "m7";
+  if (thirdInt === 3 && fifthInt === 6 && seventhInt === 10) return "m7b5";
+  if (thirdInt === 3 && fifthInt === 6 && seventhInt === 9) return "dim7";
+  if (thirdInt === 3 && fifthInt === 7 && seventhInt === 11) return "mMaj7";
+  if (thirdInt === 4 && fifthInt === 8 && seventhInt === 11) return "maj7#5";
+  if (thirdInt === 4 && fifthInt === 8 && seventhInt === 10) return "7#5";
+  return "7";
+}
+
+function getArpeggioNumeral(baseRoman, quality) {
+  if (quality === "maj7" || quality === "maj7#5") return `${baseRoman.toUpperCase()}maj7`;
+  if (quality === "7" || quality === "7#5") return `${baseRoman.toUpperCase()}7`;
+  if (quality === "m7" || quality === "mMaj7") return `${baseRoman.toLowerCase()}${quality}`;
+  if (quality === "m7b5") return `${baseRoman.toLowerCase()}ø7`;
+  if (quality === "dim7") return `${baseRoman.toLowerCase()}°7`;
+  return `${baseRoman}7`;
+}
+
+function buildDiatonicArpeggios(state) {
+  const degrees = getScaleDegrees(state);
+  const count = degrees.length;
+  if (count < 4) return [];
+
+  return degrees.map((degree, idx) => {
+    const third = degrees[(idx + 2) % count];
+    const fifth = degrees[(idx + 4) % count];
+    const seventh = degrees[(idx + 6) % count];
+    const rootPc = degree.pc;
+    const thirdInt = (third.pc - rootPc + 12) % 12;
+    const fifthInt = (fifth.pc - rootPc + 12) % 12;
+    const seventhInt = (seventh.pc - rootPc + 12) % 12;
+    const quality = getArpeggioQuality(thirdInt, fifthInt, seventhInt);
+    const numeral = getArpeggioNumeral(ROMAN[idx] || `${idx + 1}`, quality);
+    const name = `${pitchClassName(rootPc)}${quality}`;
+
+    return {
+      index: idx,
+      numeral,
+      name,
+      quality,
+      rootPc,
+      tones: new Set([rootPc, third.pc, fifth.pc, seventh.pc])
+    };
+  });
 }
 
 function buildDiatonicTriads(state) {
@@ -261,6 +315,7 @@ export function useGuitarLabState() {
   const chordData = useMemo(() => detectChordData(chordSelection), [chordSelection]);
 
   const diatonicTriads = useMemo(() => buildDiatonicTriads(state), [state]);
+  const diatonicArpeggios = useMemo(() => buildDiatonicArpeggios(state), [state]);
   const generatedScaleChords = useMemo(
     () =>
       generateScaleChordVoicings({
@@ -280,6 +335,11 @@ export function useGuitarLabState() {
     const chord = diatonicTriads.find((item) => item.index === state.diatonicChordIndex);
     return chord ? chord.tones : null;
   }, [state.diatonicChordIndex, diatonicTriads]);
+  const diatonicArpeggioTones = useMemo(() => {
+    if (state.diatonicArpeggioIndex === null) return null;
+    const arpeggio = diatonicArpeggios.find((item) => item.index === state.diatonicArpeggioIndex);
+    return arpeggio ? arpeggio.tones : null;
+  }, [state.diatonicArpeggioIndex, diatonicArpeggios]);
 
   const maxPositionStart = useMemo(
     () => Math.max(1, state.fretCount - (state.positionWindowSize - 1)),
@@ -463,6 +523,32 @@ export function useGuitarLabState() {
     [flashNote, playNote]
   );
 
+  const playDiatonicArpeggio = useCallback(
+    (arpeggio) => {
+      if (!arpeggio || !arpeggio.tones || !arpeggio.tones.size) return;
+      const notes = [];
+      TUNING.forEach((string, stringIndex) => {
+        for (let fret = 0; fret <= state.fretCount; fret += 1) {
+          const midi = string.midi + fret;
+          const pitchClass = midi % 12;
+          if (!arpeggio.tones.has(pitchClass)) continue;
+          notes.push({ midi, stringIndex, fret });
+        }
+      });
+
+      notes
+        .sort((a, b) => a.midi - b.midi)
+        .forEach((note, idx) => {
+          const delay = idx * 110;
+          window.setTimeout(() => {
+            playNote(note.midi, 0.45, 0.85);
+            flashNote(`${note.stringIndex}-${note.fret}`);
+          }, delay);
+        });
+    },
+    [flashNote, playNote, state.fretCount]
+  );
+
   const setRootIndex = useCallback((value) => {
     setState((prev) => ({ ...prev, rootIndex: value }));
   }, []);
@@ -574,6 +660,14 @@ export function useGuitarLabState() {
     setState((prev) => ({ ...prev, diatonicChordIndex: null }));
   }, []);
 
+  const setDiatonicArpeggioIndex = useCallback((index) => {
+    setState((prev) => ({ ...prev, diatonicArpeggioIndex: index }));
+  }, []);
+
+  const clearDiatonicArpeggio = useCallback(() => {
+    setState((prev) => ({ ...prev, diatonicArpeggioIndex: null }));
+  }, []);
+
   const handleNoteClick = useCallback(
     (note) => {
       playNote(note.midi, 0.6, 0.85);
@@ -632,8 +726,10 @@ export function useGuitarLabState() {
     positions,
     activePosition,
     diatonicTriads,
+    diatonicArpeggios,
     generatedScaleChords,
     diatonicChordTones,
+    diatonicArpeggioTones,
     maxPositionStart,
     chordDisplayName,
     chordInversionLabel,
@@ -643,6 +739,7 @@ export function useGuitarLabState() {
     playScaleForRange,
     playChord,
     playGeneratedChord,
+    playDiatonicArpeggio,
     setRootIndex,
     applyPreset,
     toggleDegree,
@@ -658,7 +755,9 @@ export function useGuitarLabState() {
     toggleShowInversion,
     clearChord,
     setDiatonicChordIndex,
-    clearDiatonicChord
+    clearDiatonicChord,
+    setDiatonicArpeggioIndex,
+    clearDiatonicArpeggio
   };
 }
 
