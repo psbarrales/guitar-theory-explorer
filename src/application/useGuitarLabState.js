@@ -22,6 +22,7 @@ import { INSTRUMENTS } from "../infrastructure/sound.js";
 
 const STORAGE_KEY = "guitar-scale-lab-state-v1";
 const SIDEBAR_KEY = "guitar-scale-lab-sidebar-v1";
+const BACKING_PRESETS_KEY = "guitar-scale-lab-backing-presets-v1";
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
 const DRUM_KEYS = ["kick", "snare", "hat", "crash", "tomLow", "tomHigh", "perc1", "perc2"];
 const STEPS_PER_BEAT = 4;
@@ -426,9 +427,31 @@ function scaleMatchesState(scale, state) {
   return true;
 }
 
+function loadBackingPresets() {
+  if (typeof window === "undefined" || !window.localStorage) return [];
+  try {
+    const raw = localStorage.getItem(BACKING_PRESETS_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveBackingPresets(presets) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    localStorage.setItem(BACKING_PRESETS_KEY, JSON.stringify(presets));
+  } catch (error) {
+    // ignore
+  }
+}
+
 export function useGuitarLabState() {
   const [state, setState] = useState(() => loadStoredState());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => loadSidebarState());
+  const [backingPresets, setBackingPresets] = useState(() => loadBackingPresets());
   const [chordHint, setChordHint] = useState(
     state.chordMode
       ? "Modo acorde activo. Click en notas para seleccionar."
@@ -588,6 +611,10 @@ export function useGuitarLabState() {
       // ignore
     }
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    saveBackingPresets(backingPresets);
+  }, [backingPresets]);
 
   useEffect(() => {
     if (!navigator.requestMIDIAccess) return;
@@ -1105,6 +1132,14 @@ export function useGuitarLabState() {
     });
   }, []);
 
+  const setBackingDrums = useCallback((nextDrums) => {
+    if (!nextDrums || typeof nextDrums !== "object") return;
+    setState((prev) => ({
+      ...prev,
+      backingDrums: nextDrums
+    }));
+  }, []);
+
   const addBackingChord = useCallback((item) => {
     if (!item || typeof item.voicingId !== "string") return;
     setState((prev) => {
@@ -1161,6 +1196,59 @@ export function useGuitarLabState() {
       const next = prev.backingChords.filter((_, idx) => idx !== index);
       return { ...prev, backingChords: next };
     });
+  }, []);
+
+  const saveBackingPreset = useCallback((name) => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const payload = {
+      id,
+      name: trimmed,
+      createdAt: Date.now(),
+      data: {
+        backingBpm: state.backingBpm,
+        backingBeatsPerBar: state.backingBeatsPerBar,
+        backingBars: state.backingBars,
+        backingDrums: state.backingDrums,
+        backingDrumPrograms: state.backingDrumPrograms,
+        backingDrumNotes: state.backingDrumNotes,
+        backingChords: state.backingChords,
+        backingDrumVolume: state.backingDrumVolume,
+        backingChordVolume: state.backingChordVolume
+      }
+    };
+    setBackingPresets((prev) => [payload, ...prev].slice(0, 20));
+  }, [
+    state.backingBars,
+    state.backingBeatsPerBar,
+    state.backingBpm,
+    state.backingChords,
+    state.backingChordVolume,
+    state.backingDrumNotes,
+    state.backingDrumPrograms,
+    state.backingDrumVolume,
+    state.backingDrums
+  ]);
+
+  const loadBackingPreset = useCallback((preset) => {
+    if (!preset?.data) return;
+    setState((prev) => ({
+      ...prev,
+      backingBpm: preset.data.backingBpm ?? prev.backingBpm,
+      backingBeatsPerBar: preset.data.backingBeatsPerBar ?? prev.backingBeatsPerBar,
+      backingBars: preset.data.backingBars ?? prev.backingBars,
+      backingDrums: preset.data.backingDrums ?? prev.backingDrums,
+      backingDrumPrograms: preset.data.backingDrumPrograms ?? prev.backingDrumPrograms,
+      backingDrumNotes: preset.data.backingDrumNotes ?? prev.backingDrumNotes,
+      backingChords: preset.data.backingChords ?? prev.backingChords,
+      backingDrumVolume: preset.data.backingDrumVolume ?? prev.backingDrumVolume,
+      backingChordVolume: preset.data.backingChordVolume ?? prev.backingChordVolume
+    }));
+  }, []);
+
+  const deleteBackingPreset = useCallback((id) => {
+    setBackingPresets((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   const setMetronomeEnabled = useCallback((value) => {
@@ -1365,6 +1453,7 @@ export function useGuitarLabState() {
     backingChordLabel,
     backingActiveEventIndex,
     backingChordEvents,
+    backingPresets,
     setBackingEnabled,
     setBackingBpm,
     setBackingBeatsPerBar,
@@ -1374,10 +1463,14 @@ export function useGuitarLabState() {
     setBackingDrumNote,
     setBackingChordVolume,
     toggleBackingCell,
+    setBackingDrums,
     addBackingChord,
     setBackingChords,
     updateBackingChord,
     removeBackingChord,
+    saveBackingPreset,
+    loadBackingPreset,
+    deleteBackingPreset,
     setMainProgram,
     setMidiOutputId,
     toggleChordMode,

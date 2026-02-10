@@ -102,6 +102,7 @@ export default function App() {
     backingChordLabel,
     backingActiveEventIndex,
     backingChordEvents,
+    backingPresets,
     scaleSet,
     scaleNotes,
     formulaTokens,
@@ -148,10 +149,14 @@ export default function App() {
     setBackingDrumNote,
     setBackingChordVolume,
     toggleBackingCell,
+    setBackingDrums,
     addBackingChord,
     setBackingChords,
     updateBackingChord,
     removeBackingChord,
+    saveBackingPreset,
+    loadBackingPreset,
+    deleteBackingPreset,
     setMainProgram,
     setMidiOutputId,
     toggleChordMode,
@@ -192,6 +197,173 @@ export default function App() {
   const [dragState, setDragState] = useState(null);
   const chordTrackRef = useRef(null);
   const dragMovedRef = useRef(false);
+  const [backingPresetName, setBackingPresetName] = useState("");
+
+  const BACKING_STYLES = [
+    {
+      id: "pop",
+      name: "Pop",
+      bars: 4,
+      progressions: [
+        ["I", "V", "vi", "IV"],
+        ["vi", "IV", "I", "V"],
+        ["I", "vi", "IV", "V"],
+        ["I", "IV", "V", "V"],
+        ["I", "V", "IV", "I"]
+      ],
+      drum: (steps) => ({
+        kick: [0, 8],
+        snare: [4, 12],
+        hat: Array.from({ length: steps }, (_, i) => i % 2 === 0)
+      })
+    },
+    {
+      id: "rock",
+      name: "Rock",
+      bars: 4,
+      progressions: [
+        ["I", "IV", "V", "IV"],
+        ["I", "V", "IV", "IV"],
+        ["I", "IV", "I", "V"],
+        ["I", "V", "vi", "IV"]
+      ],
+      drum: (steps) => ({
+        kick: [0, 6, 8],
+        snare: [4, 12],
+        hat: Array.from({ length: steps }, () => true)
+      })
+    },
+    {
+      id: "blues",
+      name: "Blues",
+      bars: 4,
+      progressions: [
+        ["I", "IV", "I", "V"],
+        ["I", "I", "IV", "V"],
+        ["I", "IV", "V", "IV"],
+        ["I", "IV", "I", "I"]
+      ],
+      drum: (steps) => ({
+        kick: [0, 8],
+        snare: [4, 12],
+        hat: Array.from({ length: steps }, (_, i) => i % 2 === 0)
+      })
+    },
+    {
+      id: "funk",
+      name: "Funk",
+      bars: 4,
+      progressions: [
+        ["i", "IV", "i", "V"],
+        ["i", "VII", "IV", "V"],
+        ["i", "IV", "VII", "IV"]
+      ],
+      drum: (steps) => ({
+        kick: [0, 3, 7, 10],
+        snare: [4, 12],
+        hat: Array.from({ length: steps }, (_, i) => i % 2 === 0)
+      })
+    },
+    {
+      id: "bossa",
+      name: "Bossa",
+      bars: 4,
+      progressions: [
+        ["ii", "V", "I", "I"],
+        ["ii", "V", "iii", "vi"],
+        ["ii", "V", "I", "vi"]
+      ],
+      drum: (steps) => ({
+        kick: [0, 6, 8, 14],
+        snare: [4, 12],
+        hat: Array.from({ length: steps }, (_, i) => i % 2 === 0)
+      })
+    },
+    {
+      id: "reggaeton",
+      name: "Reggaeton",
+      bars: 4,
+      progressions: [
+        ["i", "VII", "VI", "VII"],
+        ["i", "VI", "VII", "i"],
+        ["i", "VII", "i", "VI"]
+      ],
+      drum: (steps) => ({
+        kick: [0, 7, 8, 14],
+        snare: [4, 12],
+        hat: Array.from({ length: steps }, (_, i) => i % 2 === 0)
+      })
+    }
+  ];
+
+  const romanToIndex = (roman) => {
+    const map = { I: 0, II: 1, III: 2, IV: 3, V: 4, VI: 5, VII: 6 };
+    return map[roman.toUpperCase()] ?? 0;
+  };
+
+  const buildDrumPattern = (steps, hitIndexes = []) => {
+    const pattern = Array.from({ length: steps }, () => false);
+    hitIndexes.forEach((idx) => {
+      if (idx >= 0 && idx < steps) pattern[idx] = true;
+    });
+    return pattern;
+  };
+
+  const generateBacking = (style) => {
+    const stepsPerBar = state.backingBeatsPerBar * 4;
+    const bars = style.bars;
+    const totalBeats = bars * state.backingBeatsPerBar;
+    const drumBase = style.drum(stepsPerBar);
+    const nextDrums = {
+      kick: buildDrumPattern(stepsPerBar, drumBase.kick || []),
+      snare: buildDrumPattern(stepsPerBar, drumBase.snare || []),
+      hat: Array.isArray(drumBase.hat) ? drumBase.hat : buildDrumPattern(stepsPerBar, drumBase.hat || []),
+      crash: buildDrumPattern(stepsPerBar, drumBase.crash || []),
+      tomLow: buildDrumPattern(stepsPerBar, drumBase.tomLow || []),
+      tomHigh: buildDrumPattern(stepsPerBar, drumBase.tomHigh || []),
+      perc1: buildDrumPattern(stepsPerBar, drumBase.perc1 || []),
+      perc2: buildDrumPattern(stepsPerBar, drumBase.perc2 || [])
+    };
+    setBackingDrums(nextDrums);
+    setBackingBars(bars);
+
+    const targetLength = 4 + Math.floor(Math.random() * 3);
+    const templates = style.progressions || [];
+    const base = templates.length
+      ? templates[Math.floor(Math.random() * templates.length)]
+      : ["I", "V", "vi", "IV"];
+    const progression = [];
+    while (progression.length < targetLength) {
+      progression.push(base[progression.length % base.length]);
+    }
+    const chords = [];
+    let cursor = 0;
+    const beatsPerChord = Math.max(1, Math.floor(totalBeats / progression.length));
+    let remainder = Math.max(0, totalBeats - beatsPerChord * progression.length);
+    const selectedPattern = STRUM_PATTERNS[Math.floor(Math.random() * STRUM_PATTERNS.length)].id;
+    progression.forEach((roman, idx) => {
+      const degreeIndex = romanToIndex(roman);
+      const chord = diatonicTriads[degreeIndex] || diatonicTriads[0];
+      if (!chord) return;
+      const group = groupedGeneratedChords.find((item) => item.name === chord.name);
+      const voicing = group ? group.voicings[Math.floor(Math.random() * group.voicings.length)] : null;
+      if (!voicing) return;
+      const extra = remainder > 0 ? 1 : 0;
+      if (remainder > 0) remainder -= 1;
+      const duration = idx === progression.length - 1
+        ? Math.max(1, totalBeats - cursor)
+        : beatsPerChord + extra;
+      chords.push({
+        voicingId: voicing.id,
+        name: chord.name,
+        duration,
+        startBeat: cursor,
+        strumPatternId: selectedPattern
+      });
+      cursor += duration;
+    });
+    setBackingChords(chords);
+  };
 
   const DRUM_NOTE_OPTIONS = [
     { value: 35, label: "Acoustic Bass Drum (35)" },
@@ -1098,7 +1270,8 @@ export default function App() {
                 <span className="chip scale">Nota de escala</span>
                 <span className="chip muted">Fuera de escala</span>
                 <span className="chip chord">Acorde</span>
-                <span className="chip" style={{ background: "#f7d774", color: "#47370e" }}>Arpegio</span>
+                <span className="chip chord-note">Nota del acorde</span>
+                <span className="chip arpeggio-note">Nota del arpegio</span>
               </div>
               <button type="button" className="action" onClick={() => playScaleForRange(null)}>
                 Reproducir escala completa
@@ -1161,8 +1334,8 @@ export default function App() {
                     if (activeNoteSet && inRange) classes.push("in-position");
                     if (!isChordNote && activeNoteSet && inWindow && !inRange) classes.push("suppressed");
                     if (!isChordNote && inScale && !inWindow) classes.push("out-range");
-                    if (isDiatonicChordTone && !isChordNote) classes.push("prog-chord");
-                    if (isDiatonicArpeggioTone && !isChordNote) classes.push("prog-arpeggio");
+                    if (isDiatonicChordTone) classes.push("prog-chord");
+                    if (isDiatonicArpeggioTone) classes.push("prog-arpeggio");
                     if (isChordNote) classes.push("chord");
                     if (playingNotes.has(noteId)) classes.push("playing");
 
@@ -1266,6 +1439,25 @@ export default function App() {
                   onChange={(event) => setBackingChordVolume(Number(event.target.value))}
                 />
                 <span>{Math.round(state.backingChordVolume * 100)}%</span>
+              </div>
+            </div>
+
+            <div className="backing-generator">
+              <div>
+                <h3>Generador de backing</h3>
+                <p>Estilos con progresiones clasicas randomizadas.</p>
+              </div>
+              <div className="generator-buttons">
+                {BACKING_STYLES.map((style) => (
+                  <button
+                    key={style.id}
+                    type="button"
+                    className="action ghost small"
+                    onClick={() => generateBacking(style)}
+                  >
+                    {style.name}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1380,6 +1572,52 @@ export default function App() {
                   Agregar acorde
                 </button>
               </div>
+              <div className="backing-presets">
+                <input
+                  type="text"
+                  placeholder="Nombre del backing"
+                  value={backingPresetName}
+                  onChange={(event) => setBackingPresetName(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="action"
+                  onClick={() => {
+                    saveBackingPreset(backingPresetName);
+                    setBackingPresetName("");
+                  }}
+                >
+                  Guardar backing
+                </button>
+              </div>
+              {backingPresets.length ? (
+                <div className="backing-presets-list">
+                  {backingPresets.map((preset) => (
+                    <div key={preset.id} className="backing-preset-card">
+                      <div>
+                        <strong>{preset.name}</strong>
+                        <span>{new Date(preset.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="backing-chord-actions">
+                        <button
+                          type="button"
+                          className="action ghost small"
+                          onClick={() => loadBackingPreset(preset)}
+                        >
+                          Cargar
+                        </button>
+                        <button
+                          type="button"
+                          className="action ghost small"
+                          onClick={() => deleteBackingPreset(preset.id)}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div className="chord-timeline">
                 <div className="tab-wrap">
                   <div className="tab-strings">

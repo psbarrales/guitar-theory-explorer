@@ -602,6 +602,34 @@ body {
   gap: 12px;
 }
 
+.backing-generator {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(47, 108, 91, 0.08);
+}
+
+.backing-generator h3 {
+  margin: 0 0 4px;
+  font-family: "Fraunces", serif;
+}
+
+.backing-generator p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.generator-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .backing-visual {
   display: grid;
   gap: 12px;
@@ -704,6 +732,44 @@ body {
 .backing-chords-list {
   display: grid;
   gap: 10px;
+}
+
+.backing-presets {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.backing-presets input {
+  flex: 1;
+  min-width: 180px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(30, 27, 24, 0.2);
+  font-family: inherit;
+}
+
+.backing-presets-list {
+  display: grid;
+  gap: 8px;
+}
+
+.backing-preset-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(30, 27, 24, 0.15);
+  background: #fff;
+}
+
+.backing-preset-card span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
 }
 
 .chord-timeline {
@@ -1061,6 +1127,18 @@ body {
   border-color: transparent;
 }
 
+.chip.chord-note {
+  background: #fff4e6;
+  color: #6b3a00;
+  border: 2px solid #f2a65a;
+}
+
+.chip.arpeggio-note {
+  background: #fff7d6;
+  color: #5f4a08;
+  border: 2px solid #f7d774;
+}
+
 .action {
   padding: 10px 16px;
   border-radius: 999px;
@@ -1188,6 +1266,7 @@ body {
   height: 28px;
   border-radius: 50%;
   background: #f1ece2;
+  border: 2px solid transparent;
   color: var(--ink-soft);
   font-weight: 600;
 }
@@ -1202,6 +1281,12 @@ body {
   color: #fff;
 }
 
+.note.root.prog-chord span,
+.note.root.prog-arpeggio span,
+.note.root.prog-chord.prog-arpeggio span {
+  color: #fff;
+}
+
 .note.muted span {
   background: #ece6db;
   color: #8a7f72;
@@ -1210,6 +1295,7 @@ body {
 .note.chord span {
   background: #1f7a6f;
   color: #fff;
+  border-color: transparent;
   box-shadow: 0 0 0 2px rgba(31, 122, 111, 0.35), 0 0 14px rgba(31, 122, 111, 0.35);
   transform: scale(1.06);
 }
@@ -1219,15 +1305,39 @@ body {
 }
 
 .note.prog-chord span {
-  background: #f2a65a;
-  color: #3d250b;
-  box-shadow: 0 0 0 2px rgba(242, 166, 90, 0.3);
+  border-color: #f2a65a;
+  color: #6b3a00;
 }
 
 .note.prog-arpeggio span {
-  background: #f7d774;
-  color: #47370e;
-  box-shadow: 0 0 0 2px rgba(247, 215, 116, 0.35);
+  border-color: #f7d774;
+  color: #5f4a08;
+}
+
+.note.prog-chord.prog-arpeggio span {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px #f2a65a, 0 0 0 4px #f7d774;
+}
+
+.note.chord.prog-chord span {
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 2px #f2a65a, 0 0 0 4px rgba(31, 122, 111, 0.35),
+    0 0 14px rgba(31, 122, 111, 0.35);
+}
+
+.note.chord.prog-arpeggio span {
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 2px #f7d774, 0 0 0 4px rgba(31, 122, 111, 0.35),
+    0 0 14px rgba(31, 122, 111, 0.35);
+}
+
+.note.chord.prog-chord.prog-arpeggio span {
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 2px #f2a65a, 0 0 0 4px #f7d774,
+    0 0 0 6px rgba(31, 122, 111, 0.35), 0 0 14px rgba(31, 122, 111, 0.35);
 }
 
 .note.chord span::after {
